@@ -16,16 +16,10 @@ sub TIEHANDLE {
   return($ref);
 }
 
-
-
-
 sub FILENO {
   my($ref) = @_;
   return(fileno($ref->{fh}));
 }
-
-
-
 
 sub READ {
   my($ref, $buf, $len, $offset) = @_;
@@ -56,7 +50,7 @@ sub READ {
   $rc = sysread($fh, $cryptbuf, $len);
   return($didread) if ($rc <= 0);
   $clearbuf = $ref->{conn}->decode($cryptbuf);
-  return(-1) if ($clearbuf eq undef);
+  return(-1) if not defined ($clearbuf);
 
   # It may be that more encrypted bytes are needed to decrypt an entire "block"
   # If decode() returned nothing, read in more bytes (arbitrary amounts) until
@@ -65,7 +59,7 @@ sub READ {
     $rc = sysread($fh, $cryptbuf, 8);
     return($rc) if ($rc <= 0);
     $clearbuf = $ref->{conn}->decode($cryptbuf);
-    return(-1) if ($clearbuf eq undef);
+    return(-1) if not defined ($clearbuf);
   }
 
   # Copy what was asked for, stash the rest
@@ -74,9 +68,6 @@ sub READ {
 
   return($len);
 }
-
-
-
 
 # Encrypting a write() to a filehandle is much easier than reading, because
 # all the data to be encrypted is immediately available
@@ -90,17 +81,18 @@ sub WRITE {
   print $fh $cryptbuf;
 }
 
-
-
-
 # Given a GLOB ref, tie the filehandle of the GLOB to this class
 sub new {
   my($class, $fh, $conn) = @_;
   tie(*{$fh}, $class, $fh, $conn);
 }
 
-
-
+# Forward close to the tied handle
+sub CLOSE {
+  my($ref) = @_;
+  close($ref->{fh});
+  $ref->{fh} = undef;
+}
 
 # Avoid getting too circular in the free'ing of an object in this class.
 sub DESTROY {

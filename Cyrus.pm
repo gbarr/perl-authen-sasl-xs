@@ -1,11 +1,13 @@
 package Authen::SASL::Cyrus;
 require DynaLoader;
 require Authen::SASL::Cyrus::Security;
-@ISA = qw(DynaLoader);
-$VERSION = "0.10";
+require Exporter;
+
+@ISA = qw(DynaLoader);# Exporter);
+
+$VERSION = "0.11";
+
 bootstrap Authen::SASL::Cyrus $VERSION;
-
-
 
 #
 # Take a client filehandle and tie it to the Security subclass to
@@ -23,9 +25,9 @@ sub tiesocket {
 # perform SASL encryption and decryption on the network traffic
 sub securesocket {
   my ($sasl, $fh) = @_;
-  local *GLOB;
-  tie(*GLOB, "Authen::SASL::Cyrus::Security", $fh, $sasl);
-  \*GLOB;
+  my $glob = \do { local *GLOB; };
+  tie(*$glob, "Authen::SASL::Cyrus::Security", $fh, $sasl);
+  $glob;
 }
 
 

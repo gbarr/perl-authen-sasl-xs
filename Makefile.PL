@@ -9,7 +9,7 @@ WriteMakefile(
 	'PREREQ_PM'		=> {
 		Test::Simple => 0,
 		Test::More	=> 0,
-		Authen::SASL => 2.06,
+		Authen::SASL => 2.07,
 	},
 );
 

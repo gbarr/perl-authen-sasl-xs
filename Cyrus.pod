@@ -27,18 +27,22 @@ loading existing shared library mechanisms.
 
 =head1 CONSTRUCTOR
 
-The contructor may be called with or without arguments. Passing arguments is
+The constructor may be called with or without arguments. Passing arguments is
 just a short cut to calling the C<mechanism> and C<callback> methods.
 
-You have to use the C<Authen::SASL> new-contructor to create a sasl instance.
-The C<Authen::SASL> instance then holds all necessary variables and callbacks, which 
-you gave when instanciating.
+You have to use the C<Authen::SASL> new-constructor to create a SASL object.
+The C<Authen::SASL> object then holds all necessary variables and callbacks, which 
+you gave when creating the object.
 C<client_new> and C<server_new> will retrieve needed information from this
-instance.
+object.
 
 =pod
 
 =head1 CALLBACKS
+
+Callbacks are very important. It depends on the mechanism which callbacks 
+have to be set. It is not a failure to set callbacks even they aren't used.
+(e.g. password-callback when using GSSAPI or KERBEROS_V4)
 
 The Cyrus-SASL library uses callbacks when the application 
 needs some information. Common reasons are getting 
@@ -47,9 +51,9 @@ usernames and passwords.
 Authen::SASL::Cyrus allows Cyrus-SASL to use perl-variables and perl-subs
 as callback-targets.
 
-Currently Authen::SASL::Cyrus supports the following Callbacktypes:
-(for a more detailed description on what the callbacktype is used for
-see the resprective manpages)
+Currently Authen::SASL::Cyrus supports the following Callback types:
+(for a more detailed description on what the callback type is used for
+see the respective man pages)
 
 B<Remark>: All callbacks, which have to return some values (e.g.: **result in
 C<sasl_getsimple_t>) do this by returning the value(s). See example below.
@@ -97,6 +101,7 @@ Input: C<username>, C<password>
 
 Output: true or false
 
+
 =item getsecret (server, SASL v1 only)
 
 This callback represents the C<sasl_server_getsecret_t> from the library. Sasl
@@ -120,10 +125,10 @@ This callback name represents the C<sasl_canon_user_t> from the library.
 
 Input: C<Type of principal>, C<principal>, C<userrealm> and maximal allowed length of the output.
 
-Output: canonicalized C<principal>
+Output: canonicalised C<principal>
 
 C<Type of principal> is "AUTHID" for Authentication ID or "AUTHZID" 
-for Authorization ID.
+for Authorisation ID.
 
 B<Remark>: This callback is ideal to get the username of the user using your service.
 If C<Authen::SASL::Cyrus> is linked to Cyrus SASL v1, which doesn't have a canonuser callback,
@@ -136,8 +141,17 @@ This callback represents the C<sasl_authorize_t> from the library.
 
 Input: C<authenticated_username>, C<requested_username>, (C<default_realm> SASL v2 only)
 
-Output: C<canonicalized_username> SASL v1 resp. true or false when using SASL v2 lib
+Output: C<canonicalised_username> SASL v1 resp. true or false when using SASL v2 lib
 There is something TODO, I think.
+
+=item setpass (server, SASL v2 only)
+
+This callback represents the C<sasl_server_userdb_setpass_t> from the library. 
+
+Input: C<username>, C<new_password>, C<flags> (0x01 CREATE, 0x02 DISABLE, 
+0x04 NOPLAIN)
+
+Out: true or false
 
 =back
 
@@ -149,7 +163,7 @@ Authen::SASL::Cyrus supports three different ways to pass a callback
 
 =item CODEREF
 
-If the value passed is a code reference then, when needed, it will be called.
+If the value passed is a code reference then, when needed, it will be called. 
 
 =item ARRAYREF
 
@@ -158,7 +172,6 @@ must be a code reference. When the callback is called the code reference
 will be called with the value from the array passed after.
 
 =item SCALAR
-
 All other values passed will be returned directly to the SASL library
 as the answer to the callback.
 
@@ -229,8 +242,8 @@ it is not necessary to call this function directly.
 IPLOCALPORT and IPREMOTEPORT arguments are only available, when ASC is 
 linked against Cyrus SASL 2.x. This arguments are needed for KERBEROS_V4
 and CS 2.x on the server side. Don't know if it necessary for the client 
-side. Format of this arguments in an IPv4 enviroment should be: a.b.c.d;port. 
-See L<sasl_server_new> for details.
+side. Format of this arguments in an IPv4 environment should be: a.b.c.d;port. 
+See sasl_server_new(3) for details.
 
 =over 4
 
@@ -280,12 +293,28 @@ See example below.
 
 =pod
 
-=item listmech( USER , START , SEPERATOR , END )
+=item listmech( START , SEPARATOR , END )
 
 C<listmech> returns a string containing all mechanisms allowed for the user
 set by C<user>. START is the token which will be put at the beginning of the
-string, SEPERATOR is the token which will be used to seperate the mechanisms
+string, SEPARATOR is the token which will be used to separate the mechanisms
 and END is the token which will be put at the end of returned string.
+
+=pod
+
+=item setpass(user, newpassword, oldpassword, flags)
+
+=item checkpass(user, password)
+	
+C<setpass> and C<checkpass> is only available when using Cyrus-SASL 2.x library.
+
+C<setpass> sets a new password (depends on the mechanism if the setpass callback 
+is called). C<checkpass> checks a password for the user (calls the checkpass 
+callback).
+
+For both function see the man pages of the Cyrus SASL for a detailed description. 
+
+Both functions return true on success, false otherwise. 
 
 =pod
 
@@ -307,7 +336,7 @@ for every traffic which will run over the network after a successful authenticat
 C<encode> returns the encrypted string generated from STRING.
 C<decode> returns the decrypted string generated from STRING.
 
-It depends on the used mechanism how secury the encryption will be.
+It depends on the used mechanism how secure the encryption will be.
 
 =pod
 
@@ -363,7 +392,7 @@ That's why we all using perl, eh?
     }
  );
 
- # Creating the Authen::SASL::Cyrus instance
+ # Creating the Authen::SASL::Cyrus object
  my $conn = $sasl->server_new("service","","ip;port local","ip;port remote");
 
  # Clients first string (maybe "", depends on mechanism)
@@ -396,7 +425,7 @@ That's why we all using perl, eh?
     }
  );
 
- # Creating the Authen::SASL::Cyrus instance
+ # Creating the Authen::SASL::Cyrus object
  my $conn = $sasl->client_new("service", "hostname.domain.tld");
 
  # Client begins always
@@ -414,11 +443,29 @@ That's why we all using perl, eh?
 
 See t/plain.t for working script.
 
+=head1 TESTING
+
+I tested ASC (server and client) with the following mechanisms:
+
+=over 4
+
+=item GSSAPI 
+
+Don't forget to create keytab. Non-root keytabs can be specify through $ENV{'KRB5_KTNAME'} (Heimdal >= 0.6, MIT).
+
+=item KERBEROS_V4 
+
+Available since 0.10, you have to add IPLOCALPORT and IPREMOTEPORT to *_new functions.
+
+=item  PLAIN
+
+=back
+
 =head1 SEE ALSO
 
 L<Authen::SASL>
 
-manpages for sasl_* library functions.
+man pages for sasl_* library functions.
 
 =head1 AUTHOR
 
@@ -426,14 +473,21 @@ Originally written by Mark Adamson <mark@nb.net>
 
 Cyrus-SASL 2.x support by Leif Johansson
 
-Glue for server_* and some other structural improvements
-		by Patrick Boettcher <patrick.boettcher@desy.de>
+Glue for server_* and some other structural improvements by Patrick Boettcher <patrick.boettcher@desy.de>
 
 Please report any bugs, or post any suggestions, to the author.
 
+=head1 THANKS
+
+ - Guillaume Filion for testing the server part and for giving hints about
+   some bugs (documentation).
+ - Wolfgang Friebel for bother around with rpm building of test releases.
+
 =head1 COPYRIGHT
 
-Copyright (c) 2003 Carnegie Mellon University. All rights reserved. This
-program is free software; you can redistribute it and/or modify it under
+Copyright (c) 2003-4 Patrick Boettcher, DESY Zeuthen. All rights reserved.
+Copyright (c) 2003 Carnegie Mellon University. All rights reserved. 
+
+This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
 

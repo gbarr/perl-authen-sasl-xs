@@ -82,7 +82,7 @@ sleep(1);
 	if ($conn->code == 0) {
 		print "Client: Negotiation succeeded.\n";
 	} else { 
-		print "Server: Negotiation failed.\n",$conn->error,"\n";
+		print "Client: Negotiation failed.\n",$conn->error,"\n";
 	}
 	
 	close FROM_PARENT;

@@ -33,11 +33,45 @@ application)
 After successful Makefile creation run
 
 # make
-# make test
+# make test  
 # make install
+
+(for a successful make test you have to have installed the PLAIN mechanism)
 
 And everything is installed.
 
 If you want to test gssapi functionality, copy the gssapiskel.pl to gssapi.t
 and edit the file correctly. Don't forget the create keytabfiles. Then 
 rerun make test and see what happens.
+
+2. Use Authen::SASL::Cyrus with GSSAPI for LDAP
+
+If you are able to use the ldap* tools with GSSAPI and now you want to use Perl
+for this LDAP work, then you need Authen::SASL::Cyrus 0.11 or later. Please try
+this script before reporting any bugs or problems:
+
+#!/usr/bin/perl -w
+use Net::LDAP;
+use Authen::SASL;
+
+my $slavesasl = Authen::SASL->new(mechanism=>'GSSAPI'
+    'user' => " ",  # empty callback, so Net::LDAP don't overrides it
+);
+
+my $ldap = Net::LDAP->new('server', version=>3, async=>1) || die "$@";
+
+my $mesg = $ldap->bind("", sasl=>$slavesasl, async=>1);
+
+$mesg->code && die $mesg->error;
+
+$mesg = $ldap->search(async=>1,filter=>"(objectClass=*)",base=>"dc=workgroup");
+
+@entries = $mesg->entries;
+
+foreach $entry (@entries) {
+	     $entry->dump;
+}
+
+##
+If you discover any problem please report the error message, your SASL version and
+your LDAP version to me.

@@ -1,5 +1,13 @@
 History of updates to Authen::SASL::Cyrus
 
+0.11
+added setpass and checkpass methods 
+added setpass callback
+applied a patch by Graham Barr (found with google) for enabling GSSAPI
+authentication with Net::LDAP (fixed a problem in Security.pm)
+added a check for undef return values when using sub-callbacks (Thanks
+to Quanah Gibson-Mount for discovering this one)
+
 0.10
 Added the iplocalport and ipremote port to *_new methods, after filling
 in the appropriate string (see doc) ASC is able to manage KERBEROS_V4
@@ -17,6 +25,7 @@ SASL-Server functionality added, so servers written in Perl can use
 SASL as Authentication Layer. Synchronize callbacks between Cyrus SASL
 v1 and v2.
 Many changes in the internal handling of sasl variables.
+Documentation inside the XS-file, do motivate myself to write docs
 
 0.07
 Memcpy fix provided by Maurice Massar
