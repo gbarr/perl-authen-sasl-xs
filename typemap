@@ -1,5 +1,6 @@
 TYPEMAP
 struct authensasl *	AuthenSASLtype
+const char *    T_PV
 
 INPUT
 AuthenSASLtype

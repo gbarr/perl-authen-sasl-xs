@@ -1,5 +1,12 @@
 History of updates to Authen::SASL::Cyrus
 
+0.08-desy-internal
+Almost complete rewrite of Perlcallbacks from Cyrus.xs.
+SASL-Server functionality added, so servers written in Perl can use
+SASL as Authentication Layer. Synchronize callbacks between Cyrus SASL
+v1 and v2.
+Many changes in the internal handling of sasl variables.
+
 0.07
 Memcpy fix provided by Maurice Massar
 

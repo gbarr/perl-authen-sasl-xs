@@ -1,20 +1,19 @@
-
 =head1 NAME
 
-Authen::SASL::Cyrus - XS SASL Authentication
+Authen::SASL::Cyrus	- XS code to glue Perl SASL to Cyrus SASL
 
 =head1 SYNOPSIS
 
- use Authen::SASL;
-
- $sasl = Authen::SASL->new(
-   mechanism => 'NAME',
-   callback => { NAME => VALUE, NAME => VALUE, ... },
- );
-
-
- $conn = $sasl->client_new(<service>, <server>);
-
+  use Authen::SASL;
+  
+  my $sasl = Authen::SASL->new(
+         mechanism => 'NAME',
+         callback => { NAME => VALUE, NAME => VALUE, ... },
+  );
+    
+  my $conn = $sasl->client_new(<service>, <server>);
+ 
+  my $conn = $sasl->server_new(<service>);
 
 =head1 DESCRIPTION
 
@@ -22,108 +21,134 @@ SASL is a generic mechanism for authentication used by several
 network protocols. B<Authen::SASL::Cyrus> provides an implementation
 framework that all protocols should be able to share.
 
-The XS framework makes calls into the existing libsasl.so shared 
-library to perform SASL client connection functionality, including
+The XS framework makes calls into the existing libsasl.so resp. libsasl2
+shared library to perform SASL client connection functionality, including
 loading existing shared library mechanisms.
 
-
-=head2 CONTRUCTOR
+=head1 CONSTRUCTOR
 
 The contructor may be called with or without arguments. Passing arguments is
 just a short cut to calling the C<mechanism> and C<callback> methods.
 
-=item client_new( SERVICE, HOST )
+You have to use the C<Authen::SASL> new-contructor to create a sasl instance.
+The C<Authen::SASL> instance then holds all necessary variables and callbacks, which 
+you gave when instanciating.
+C<client_new> and C<server_new> will retrieve needed information from this
+instance.
 
-Creates and returns a new connection object blessed into Authen::SASL::Cyrus.
-It is on that returned reference that the following methods are available.
-The SERVICE is the name of the service being implemented, which may be used
-by the underlying mechanism. An example service is "ldap". The HOST is the
-name of the server being contacted, which may also be used by the underlying
-mechanism.
+=pod
 
-=head2 Authen::SASL::Cyrus METHODS
+=head1 CALLBACKS
+
+The Cyrus-SASL library uses callbacks when the application 
+needs some information. Common reasons are getting 
+usernames and passwords.
+
+Authen::SASL::Cyrus allows Cyrus-SASL to use perl-variables and perl-subs
+as callback-targets.
+
+Currently Authen::SASL::Cyrus supports the following Callbacktypes:
+(for a more detailed description on what the callbacktype is used for
+see the resprective manpages)
+
+B<Remark>: All callbacks, which have to return some values (e.g.: **result in
+C<sasl_getsimple_t>) do this by returning the value(s). See example below.
 
 =over 4
 
-=item callback ( NAME )
+=item user (client)
 
-Tells if the named callback has a handler installed. The list of implemented
-callbacks is "user", "auth", and "language". Others may be implemented in
-future releases.
+=item auth (client)
 
-=item callback( NAME => VALUE,  NAME => VALUE, ... )
+=item language (client)
 
-Sets the given callback(s) to the given value(s). See the C<Callbacks> section
-for a description of callback VALUEs. See above for a list of implemented
-callback NAMEs.
+This callbacks represent the C<sasl_getsimple_t> from the library.
 
-=item client_start
+Input: none
 
-The initial step to be performed. Returns the initial value to pass to the server.
+Output: C<username>, C<authname> or C<language> 
 
-=item client_step( CHALLENGE )
+=item password (client)
 
-This method is called when a response from the server requires it. CHALLENGE
-is the value from the server. Returns the next value to pass to the server.
+=item pass (client)
 
-=item code
+This callbacks represent the C<sasl_getsecret_t> from the library.
 
-Returns a 1 if an error has occurred in any step along the way. See the
-C<error> method to get a better explanation of what error occurred. 
-Returns a 0 if no errors have occurred.
+Input: none
 
-=item error
+Output: C<password>
 
-Returns a string with a brief description of what caused the last error,
-AND clears the error message so that subsequent calls will return an empty
-string until another error occurs.
+=item realm <client>
 
-=item host
+This callback represents the C<sasl_getrealm_t> from the library.
 
-Returns the host argument that was passed to C<client_new>
-=item mechanism
+Input: a list of available realms
 
-Returns the SASL mechanism currently in use. It should match one of the 
-installed SASL shared library mechanisms (see your SASL distribution for
-a list of available mechanisms).
+Output: the chosen realm
 
-=item property( NAME )
+(This has nothing to do with GSSAPI or KERBEROS_V4 realm).
 
-Gets the SASL value for the named property. Currently implemented property
-names are: "user", "ssf", "maxout", "realm", "optctx", "iplocal" | "sockname", 
-"ipremote" | "peername". 
+=item checkpass (server, SASL v2 only)
 
-=item property( NAME => VALUE, NAME => VALUE, ... )
+This callback represents the C<sasl_server_userdb_checkpass_t> from the 
+library.
 
-Sets the named property(ies) to the given value(s). Currently implemented 
-property names are given above.
+Input: C<username>, C<password>
 
-=item service
+Output: true or false
 
-Returns the service argument that was passed to C<client_new>
+=item getsecret (server, SASL v1 only)
+
+This callback represents the C<sasl_server_getsecret_t> from the library. Sasl
+will check if the passwords are matching.
+
+Input: C<mechanism>, C<username>, C<default_realm>
+
+Output: C<secret_phrase (password)>
+
+=item putsecret (SASL v1) and setpass (SASL v2) 
+
+are currently not supported (and won't be, unless someone needs it).
+
+=item canonuser (server/client in SASL v2, server only in SASL v1)
+
+This callback name represents the C<sasl_canon_user_t> from the library.
+
+Input: C<Type of principal>, C<principal>, C<userrealm> and maximal allowed length of the output.
+
+Output: canonicalized C<principal>
+
+C<Type of principal> is "AUTHID" for Authentication ID or "AUTHZID" 
+for Authorization ID.
+
+B<Remark>: This callback is ideal to get the username of the user using your service.
+
+=item authorize (server)
+
+This callback represents the C<sasl_authorize_t> from the library. Especially when using
+SASL v1 library, this callback is useful getting the username (like canon does for SASL v2).
+
+Input: C<authenticated_username>, C<requested_username>, (C<default_realm> SASL v2 only)
+
+Output: C<canonicalized_username> SASL v1  resp. true or false when using SASL v2 lib
 
 =back
 
-=head2 Callbacks
+=head2 Ways to pass a callback
 
-There are three different ways in which a callback may be passed
+Authen::SASL::Cyrus supports three different ways to pass a callback 
 
-=over
+=over 4
 
 =item CODEREF
 
-If the value passed is a code reference then, when needed, it will be called
-and the connection object will be passed as the first argument.
+If the value passed is a code reference then, when needed, it will be called.
 
 =item ARRAYREF
 
 If the value passed is an array reference, the first element in the array
 must be a code reference. When the callback is called the code reference
-will be called with the connection object passed as the first argument
-and the second value from the array passed after. The code reference
-should return a scalar value which is the answer to the callback, e.g.
-a "user" callback should return a single string which is the username of
-the client.
+will be called with the value from the array passed after.
 
 =item SCALAR
 
@@ -132,20 +157,270 @@ as the answer to the callback.
 
 =back
 
+=head2 Example of setting callbacks
+
+$sasl = new Authen::SASL (
+  mechanism => "PLAIN",
+    callback => {
+      # Scalar
+      user => "mannfred",
+      pass => $password, 
+      language => 1,
+
+      # Coderef
+      auth => sub { return "klaus", }
+      realm => \&getrealm,
+
+      # Arrayref
+      canonuser => [ \&canon, $self ],
+   }
+);
+
+The last example is ideal for using object methods as callback functions.
+Then you can do something like this:
+
+sub canon
+{
+  my ($this,$type,$realm,$maxlen,$user) = @_;
+  $this->{_username} = $user if ($type eq "AUTHID");
+  return $user;
+}
+
+=head1 Authen::SASL::Cyrus METHODS
+
+=over 4
+
+=item server_new ( SERVICE )
+
+Constructor for creating server-side sasl contexts.
+
+Creates and returns a new connection object blessed into Authen::SASL::Cyrus.
+It is on that returned reference that the following methods are available.
+The SERVICE is the name of the service being implemented, which may be used
+by the underlying mechanism. An example service therefore is "ldap".
+
+=pod
+
+=item client_new ( SERVICE , HOST )
+
+Constructor for creating server-side sasl contexts.
+
+Creates and returns a new connection object blessed into Authen::SASL::Cyrus.
+It is on that returned reference that the following methods are available.
+The SERVICE is the name of the service being implemented, which may be used
+by the underlying mechanism. An example service is "ldap". The HOST is the
+name of the server being contacted, which may also be used 
+by the underlying mechanism.
+
+=back
+
+B<Remark>:
+This and the C<server_new> function are called by L<Authen::SASL> when using 
+its C<*_new> function. Since the user has to use Authen::SASL anyway, normally
+it is not necessary to call this function directly.
+
+=over 4
+
+See SYNOPSIS for an example.
+
+=pod
+
+=item server_start ( CHALLENGE )
+
+C<server_start> begins the authentication using the chosen mechanism. 
+If the mechanism is not supported by the installed Cyrus-SASL it fails.
+Because for some mechanisms the client has to start the negotiation,
+you can give the client challenge as a parameter. 
+
+=pod
+
+=item client_start ( )
+
+The initial step to be performed. Returns the initial value to pass to the server.
+Client has to start the negotiation always.
+
+=pod
+
+=item server_step ( CHALLENGE )
+
+C<server_step> performs the next step in the negotiation process. The
+first parameter you give is the clients challenge/response.
+
+=pod
+
+=item client_step ( CHALLENGE )
+
+=back
+
+B<Remark>:
+C<client_start>, C<client_step>, C<server_start> and C<server_step> 
+will return the respective sasl response or undef. The returned value
+says nothing about the current negotiation status. It is absolutely possible
+that one of these functions return undef and everything is fine for SASL, 
+there is only another step needed.
+
+Therefore you have to check C<need_step> and C<code> during negotiation.
+
+See example below.
+
+=over 4
+
+=pod
+
+=item listmech( USER , START , SEPERATOR , END )
+
+C<listmech> returns a string containing all mechanisms allowed for the user
+set by C<user>. START is the token which will be put at the beginning of the
+string, SEPERATOR is the token which will be used to seperate the mechanisms
+and END is the token which will be put at the end of returned string.
+
+=pod
+
+=item global_listmech ( )
+
+C<global_listmech> is only available when using Cyrus-SASL 2.x library.
+
+It returns an array with all mechanisms loaded by the library. 
+
+=pod
+
+=item encode ( STRING )
+
+=item decode ( STRING )
+
+Cyrus-SASL developers suggest using the C<encode> and C<decode> functions
+for every traffic which will run over the network after a successful authentication
+
+C<encode> returns the encrypted string generated from STRING.
+C<decode> returns the decrypted string generated from STRING.
+
+It depends on the used mechanism how secury the encryption will be.
+
+=pod
+
+=item error ( )
+
+C<error> returns an array with all known error messages. 
+Basicly the sasl_errstring function is called with the current error_code.
+When using Cyrus-SASL 2.x library also the string returned by sasl_errdetail 
+is given back. Additionally the special Authen::SASL::Cyrus advise is 
+returned if set.
+After calling the C<error> function, the error code and the special advice 
+are thrown away.
+
+=pod
+
+=item code ( )
+
+C<code> returns the current Cyrus-SASL error code.
+
+=pod
+
+=item mechanism ( )
+
+C<mechanism> returns the current used authentication mechanism.
+
+=pod
+
+=item need_step ( )
+
+C<need_step> returns true if another step is need by the SASL library. Otherwise
+false is returned. You can also use C<code == 1> but it looks smarter I think. 
+That's why we all using perl, eh?
+
+=pod
+
+=back
+
+=head1 EXAMPLE
+
+=head2 Server-side
+
+ # The example uses Cyrus-SASL v2
+ # Set the SASL_PATH to the location of the SASL-Plugins
+ # default is /usr/lib/sasl2
+ $ENV{'SASL_PATH'} = "/opt/products/sasl/2.1.15/lib/sasl2";
+
+ #
+ my $sasl = Authen::SASL->new (
+    mechanism => "PLAIN",
+    callback => {
+      checkpass => \&checkpass,
+      canonuser => \&canonuser,
+    }
+ );
+
+ # Creating the Authen::SASL::Cyrus instance
+ my $conn = $sasl->server_new("service");
+
+ # Clients first string (maybe "", depends on mechanism)
+ # Client has to start always
+ sendreply( $conn->server_start( &getreply() ) );
+
+ while ($conn->need_step) {
+    sendreply( $conn->server_step( &getreply() ) );
+ }
+
+ if ($conn->code == 0) {
+    print "Negotiation succeeded.\n";
+ } else {
+    print "Negotiation failed.\n";
+ }
+
+=head2 Client-side
+
+ # The example uses Cyrus-SASL v2
+ # Set the SASL_PATH to the location of the SASL-Plugins
+ # default is /usr/lib/sasl2
+ $ENV{'SASL_PATH'} = "/opt/products/sasl/2.1.15/lib/sasl2";
+
+ #
+ my $sasl = Authen::SASL->new (
+    mechanism => "PLAIN",
+    callback => {
+      user => \&getusername,
+      pass => \&getpassword,
+    }
+ );
+
+ # Creating the Authen::SASL::Cyrus instance
+ my $conn = $sasl->client_new("service", "hostname.domain.tld");
+
+ # Client begins always
+ sendreply($conn->client_start());
+
+ while ($conn->need_step) {
+    sendreply($conn->client_step( &getreply() ) );
+ }
+
+ if ($conn->code == 0) {
+    print STDERR "Negotiation succeeded.\n";
+ } else {
+    print STDERR "Negotiation failed.\n";
+ }
+
+See t/plain.t for working script.
+
 =head1 SEE ALSO
 
 L<Authen::SASL>
 
+manpages for sasl_* library functions.
+
 =head1 AUTHOR
 
-Mark Adamson <mark@nb.net>
+Originally written by Mark Adamson <mark@nb.net>
+
+Cyrus-SASL 2.x support by Leif Johansson
+
+Glue for server_* and some other structural improvements
+		by Patrick Boettcher <patrick.boettcher@desy.de>
 
 Please report any bugs, or post any suggestions, to the author.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2002 Carnegie Mellon University. All rights reserved. This 
-program is free software; you can redistribute it and/or modify it under 
+Copyright (c) 2003 Carnegie Mellon University. All rights reserved. This
+program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
 
-=cut
