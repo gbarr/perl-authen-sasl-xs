@@ -196,8 +196,10 @@ int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *
 	{
 		if (cp->param == NULL)
 			rc = SASL_FAIL;
-		else
+		else {
+			_DEBUG("PV: %s",SvPV(cp->param,*len));
 			*result = strdup(SvPV(cp->param,*len));
+		}
 	}
 	else // Call the perl function
 	{
@@ -221,7 +223,9 @@ int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *
 	 
 		/* Refresh the local stack in case the function played with it */
 		SPAGAIN;
-
+		
+		_DEBUG("Count of retvals: %d",count);
+		
 		if (count != 1)
 			rc = SASL_FAIL;
 		else 
@@ -412,7 +416,9 @@ int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *us
 	// Create the parameter array and fill it
 	av_push(args, newSVpv(pass,0));
 	av_push(args, newSVpv(user,0));
-		
+	
+	_DEBUG("ServerCheckPass %s %s",user,pass);
+	
 	/* HandlePerlStuff */
 	rc = PerlCallbackSub(cp,&c,&len,args);
 
@@ -425,7 +431,7 @@ int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *us
 	if (c != NULL)
 		free(c);
 	
-	_DEBUG("Checkpass retval: %x",rc);
+	_DEBUG("Checkpass retval: %d",rc);
 	
 	return rc;
 }
@@ -675,6 +681,10 @@ Input: C<mechanism>, C<username>, C<default_realm>
 
 Output: C<secret_phrase (password)>
 
+B<Remark>: Programmers that are using should specify both callbacks (getsecret and checkpass).
+Then, depending on you Cyrus SASL library either the one or the other is called. Cyrus SASL v1 
+ignores checkpass and Cyrus SASL v2 ignores getsecret.
+
 =item putsecret (SASL v1) and setpass (SASL v2) 
 
 are currently not supported (and won't be, unless someone needs it).
@@ -691,15 +701,18 @@ C<Type of principal> is "AUTHID" for Authentication ID or "AUTHZID"
 for Authorization ID.
 
 B<Remark>: This callback is ideal to get the username of the user using your service.
+If C<Authen::SASL::Cyrus> is linked to Cyrus SASL v1, which doesn't have a canonuser callback,
+it will simulate this callback by using the authorize callback internally. Don't worry, the 
+authorize callback is available anyway.
 
 =item authorize (server)
 
-This callback represents the C<sasl_authorize_t> from the library. Especially when using
-SASL v1 library, this callback is useful getting the username (like canon does for SASL v2).
+This callback represents the C<sasl_authorize_t> from the library. 
 
 Input: C<authenticated_username>, C<requested_username>, (C<default_realm> SASL v2 only)
 
-Output: C<canonicalized_username> SASL v1  resp. true or false when using SASL v2 lib
+Output: C<canonicalized_username> SASL v1 resp. true or false when using SASL v2 lib
+There is something TODO, I think.
 
 =back
 
@@ -791,32 +804,47 @@ int CallbackNumber(char *name)
 static
 void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
 {
-	if (SvROK(action)) {     /*   user =>  <ref>  */
-		action = SvRV(action);
+	__DEBUG("AddCallback");
 
-		if (SvTYPE(action) == SVt_PVCV) {   /* user => sub { },  user => \&func */
-			pcb->func = action;
-			pcb->param = NULL;
-		}
-		else if (SvTYPE(action) == SVt_PVAV) {   /* user => [ \&func, $param ] */
-			pcb->func = av_shift((AV *)action);
-			pcb->param = av_shift((AV *)action);
-			_DEBUG("Parametered Callback: %s",SvPV_nolen(pcb->param));
-		}
-		else
-			croak("Unknown reference parameter to %x callback.\n", cb->id);
+	if (SvROK(action)) {     /*   user =>  <ref>  */
+		__DEBUG("SvROK -> Dereferencing");
+		action = SvRV(action);
 	}
-	else if (SvTYPE(action) == SVt_PV) {   /*  user => $param */
-		pcb->func = NULL;
-		pcb->param = action;
+
+	pcb->func = NULL;
+	pcb->intparam = 0;
+	pcb->param = NULL;
+
+	_DEBUG("action type: %d",SvTYPE(action));
+
+	switch (SvTYPE(action)) {
+		case SVt_PVCV:	/* user => sub { },  user => \&func */
+				pcb->func = action;
+				__DEBUG("SVt_PVCV"); 
+			break;
+			
+		case SVt_PVAV:	/* user => [ \&func, $param ] */
+				pcb->func = av_shift((AV *)action); pcb->param = av_shift((AV *)action);
+				_DEBUG("Parametered Callback: %s",SvPV_nolen(pcb->param));
+			break;
+			
+		case SVt_PV:	/* user => $param */
+		case SVt_PVMG:	/* user => $self->{value} */
+		case SVt_PVIV:  /* $self->{value} = ""; [...] user => $self->{value} */
+				pcb->param = action;
+				_DEBUG("SVt- PV PVMG PVIV (%s)",SvPV_nolen(pcb->param));
+			break;
+			
+		case SVt_IV: 	/*  user => 1 */
+				pcb->intparam = SvIV(action);
+				__DEBUG("SVt_IV");
+			break;
+
+		default:
+				_DEBUG("Unknown parameter %d %s",SvTYPE(action),SvPV_nolen(action));
+				croak("Unknown parameter to %x callback.\n", cb->id);
+			break;
 	}
-	else if (SvTYPE(action) == SVt_IV) {   /*  user => 1 */
-		pcb->func = NULL;
-		pcb->param = NULL;
-		pcb->intparam = SvIV(action);
-	}
-	else
-		croak("Unknown parameter to %x callback.\n", cb->id);
 
 	_DEBUG("Callback: %x",cb->id);
 	/* Write the C SASL callbacks */
@@ -950,10 +978,10 @@ void ExtractParentCallbacks(SV *parent, struct authensasl *sasl)
 		key = hv_iterkey(iter,&l);
 		_DEBUG("Callback %d, %s",count, key);
 		if ( (i = CallbackNumber(key))) {
+			_DEBUG("Adding Callback %s %d %x.",key,count,i);
 			sasl->callbacks[count].id = i;
 			val = hv_iterval(hash, iter);
 			AddCallback(val, &pcb[count], &sasl->callbacks[count]);
-			_DEBUG("Adding Callback %s %d %x.",key,count,i);
 			count++;
 		}
 		else
@@ -1264,7 +1292,7 @@ client_start(sasl)
 #else
       rc = sasl_client_start(sasl->conn, sasl->mech, NULL, NULL, &outstring, &outlen, &mech);
 #endif
-	  _DEBUG("client_start. error %x, len: %d\n",rc,outlen);
+	  _DEBUG("client_start. error %x, len: %d",rc,outlen);
 	  SetSaslError(sasl,rc,"client_start error. (Callbacks?)");
       if (rc != SASL_OK && rc != SASL_CONTINUE)
 		XSRETURN_UNDEF;

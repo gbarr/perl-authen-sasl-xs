@@ -1,5 +1,9 @@
 History of updates to Authen::SASL::Cyrus
 
+0.09
+Add callback documenation
+Perl-Callback types (PVMG, PV, PVIV) handling extended 
+
 0.08-desy-internal
 Almost complete rewrite of Perlcallbacks from Cyrus.xs.
 SASL-Server functionality added, so servers written in Perl can use
