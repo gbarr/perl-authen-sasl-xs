@@ -11,9 +11,9 @@ Authen::SASL::Cyrus	- XS code to glue Perl SASL to Cyrus SASL
          callback => { NAME => VALUE, NAME => VALUE, ... },
   );
     
-  my $conn = $sasl->client_new(<service>, <server>);
+  my $conn = $sasl->client_new(<service>, <server>, <iplocalport>, <ipremoteport>);
  
-  my $conn = $sasl->server_new(<service>);
+  my $conn = $sasl->server_new(<service>, <host>, <iplocalport>, <ipremoteport>);
 
 =head1 DESCRIPTION
 
@@ -149,9 +149,9 @@ int SetSaslError(struct authensasl *sasl,int code, const char* msg)
 			else
 				sasl->additional_errormsg = NULL;
 		}
+		_DEBUG("called Error: %s, Code: %d Client: %d",msg,code,sasl->is_client);
+		_DEBUG("now Error: %s, Code: %d",sasl->additional_errormsg,sasl->error_code);
 	}
-	_DEBUG("called Error: %s, Code: %d",msg,code);
-	_DEBUG("now Error: %s, Code: %d",sasl->additional_errormsg,sasl->error_code);
 	return code;
 }
 
@@ -561,7 +561,7 @@ int PerlCallbackGetSecret( void *context, const char *mechanism, const char *aut
 	else
 		rc = SASL_FAIL;
 
-	_DEBUG("GetSercret, pass: %s, rc: %x",(*secret)->data,rc);
+	_DEBUG("GetSecret, pass: %s, rc: %x",(*secret)->data,rc);
 	
 	if (c != NULL)
 		free(c);
@@ -1074,7 +1074,7 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 			__DEBUG("Saslmech not recognized:");
 		}
 	}
-	
+
 	return (*sasl)->error_code;	
 }
 
@@ -1102,7 +1102,7 @@ MODULE=Authen::SASL::Cyrus      PACKAGE=Authen::SASL::Cyrus
 
 =over 4
 
-=item server_new ( SERVICE )
+=item server_new ( SERVICE , HOST = "" , IPLOCALPORT , IPREMOTEPORT )
 
 Constructor for creating server-side sasl contexts.
 
@@ -1115,26 +1115,28 @@ by the underlying mechanism. An example service therefore is "ldap".
 
 
 struct authensasl *
-server_new(pkg, parent, service, host = NULL, ...)
+server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NULL ...)
 	char *pkg
 	SV *parent
 	char *service
 	char *host
+	char *iplocalport
+	char *ipremoteport
 	CODE:
 	{
-/* TODO realm and other parameters*/
+/* TODO realm parameter */
 		struct authensasl *sasl = NULL;
 		int rc;
 		
 		if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_SERVER)) != SASL_OK)
 			croak("Saslinit failed. (%x)\n",rc);
 			
-		_DEBUG("server_new: Service: %s Server: %s, %s %s",sasl->service,sasl->server,service,host);
+		_DEBUG("server_new: Service: %s Server: %s, %s %s %s %s",sasl->service,sasl->server,service,host,iplocalport,ipremoteport);
 	
 		if ((rc = sasl_server_init(NULL,sasl->service)) != SASL_OK)
 			SetSaslError(sasl,rc,"server_init error.");
 #ifdef SASL2
-		rc = sasl_server_new(sasl->service, sasl->server, NULL, NULL, NULL, sasl->callbacks, 1, &sasl->conn);
+		rc = sasl_server_new(sasl->service, sasl->server, NULL, iplocalport, ipremoteport, sasl->callbacks, 1, &sasl->conn);
 #else
 		rc = sasl_server_new(sasl->service, sasl->server, NULL, sasl->callbacks, 1, &sasl->conn);
 #endif
@@ -1152,7 +1154,7 @@ server_new(pkg, parent, service, host = NULL, ...)
 
 =pod
 
-=item client_new ( SERVICE , HOST )
+=item client_new ( SERVICE , HOST , IPLOCALPORT , IPREMOTEPORT )
 
 Constructor for creating server-side sasl contexts.
 
@@ -1170,6 +1172,12 @@ This and the C<server_new> function are called by L<Authen::SASL> when using
 its C<*_new> function. Since the user has to use Authen::SASL anyway, normally
 it is not necessary to call this function directly.
 
+IPLOCALPORT and IPREMOTEPORT arguments are only available, when ASC is 
+linked against Cyrus SASL 2.x. This arguments are needed for KERBEROS_V4
+and CS 2.x on the server side. Don't know if it necessary for the client 
+side. Format of this arguments in an IPv4 enviroment should be: a.b.c.d;port. 
+See L<sasl_server_new> for details.
+
 =over 4
 
 See SYNOPSIS for an example.
@@ -1177,11 +1185,13 @@ See SYNOPSIS for an example.
 =cut
 
 struct authensasl *
-client_new(pkg, parent, service, host, ...)
+client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL...)
     char *pkg
     SV *parent
     char *service
     char *host
+	char *iplocalport
+	char *ipremoteport
   CODE:
   {
 	struct authensasl *sasl = NULL;
@@ -1193,7 +1203,7 @@ client_new(pkg, parent, service, host, ...)
     sasl_client_init(NULL);
 	_DEBUG("service: %s, host: %s, mech: %s",sasl->service,sasl->server,sasl->mech);
 #ifdef SASL2
-    rc = sasl_client_new(sasl->service, sasl->server, 0, 0, sasl->callbacks, 1, &sasl->conn);
+    rc = sasl_client_new(sasl->service, sasl->server, iplocalport, ipremoteport, sasl->callbacks, 1, &sasl->conn);
 #else
     rc = sasl_client_new(sasl->service, sasl->server, sasl->callbacks, 1, &sasl->conn);
 #endif
@@ -1255,6 +1265,8 @@ server_start(sasl,instring=NULL)
 		rc = sasl_server_start(sasl->conn,sasl->mech, instring, inlen, &outstring, &outlen, &error);
 #endif
 		SetSaslError(sasl,rc,"server_start error."); // SASL_CONTINUE has to be set
+
+		_DEBUG("Server step out: %s %d",outstring, outlen);
 		if (rc != SASL_OK && rc != SASL_CONTINUE)
 			XSRETURN_UNDEF;
 		else // Everything works fine
@@ -1694,104 +1706,105 @@ need_step(sasl)
 
 int
 property(sasl, ...)
-    struct authensasl *sasl
-  PPCODE:
-  {
+struct authensasl *sasl
+PPCODE:
+{
 #ifdef SASL2
-    const void *value=NULL;
+	const void *value=NULL;
 #else
-    void *value=NULL;
+	void *value=NULL;
 #endif
-    char *name;
-    int rc, x, propnum=-1;
-    SV *prop;
+	char *name;
+	int rc, x, propnum=-1;
+	SV *prop;
 
+	RETVAL = SASL_OK;
 
-    RETVAL = SASL_OK;
-
-    if (!sasl->conn) {
+	if (!sasl->conn) {
 #ifdef SASL2
-      SetSaslError(sasl,SASL_NOTINIT,"property failed, init missed.");
-      RETVAL = SASL_NOTINIT;
+		SetSaslError(sasl,SASL_NOTINIT,"property failed, init missed.");
+		RETVAL = SASL_NOTINIT;
 #else
-      SetSaslError(sasl,SASL_FAIL,"property failed, init missed.");
-      RETVAL = SASL_FAIL;
+		SetSaslError(sasl,SASL_FAIL,"property failed, init missed.");
+		RETVAL = SASL_FAIL;
 #endif
-      items = 0;
-    }
+		items = 0;
+	}
+/* Querying the value of a property */
+	if (items == 2) {
+		name = SvPV_nolen(ST(1));
+		propnum = PropertyNumber(name);
+		rc = sasl_getprop(sasl->conn, propnum, &value);
+		
+		if (value == NULL || rc != SASL_OK)
+			XSRETURN_UNDEF;
 
-    /* Querying the value of a property */
-    if (items == 2) {
-      name = SvPV_nolen(ST(1));
-      propnum = PropertyNumber(name);
-      rc = sasl_getprop(sasl->conn, propnum, &value);
-      if (rc != SASL_OK) XSRETURN_UNDEF;
-      switch(propnum){
-        case SASL_USERNAME:
+		switch(propnum){
+			case SASL_USERNAME:
 #ifdef SASL2
-        case SASL_DEFUSERREALM:
+			case SASL_DEFUSERREALM:
 #else
-        case SASL_REALM:
+			case SASL_REALM:
 #endif
-          XPUSHp( (char *)value, strlen((char *)value));
-          break;
-        case SASL_SSF:
-        case SASL_MAXOUTBUF:
-          XPUSHi((int *)value);
-          break;
+				XPUSHp( (char *)value, strlen((char *)value));
+			break;
+			case SASL_SSF:
+			case SASL_MAXOUTBUF:
+				XPUSHi((int *)value);
+			break;
 #ifdef SASL2
-        case SASL_IPLOCALPORT:
-        case SASL_IPREMOTEPORT:
-          XPUSHp( (char *)value, strlen((char *)value));
-          break;
-        case SASL_IP_LOCAL:
-           propnum = SASL_IPLOCALPORT;
-           {
-            char *addr = inet_ntoa( (*(struct in_addr *)value));
-            XPUSHp( addr, strlen(addr));
-          }
-          break;
-        case SASL_IP_REMOTE:
-          propnum = SASL_IPREMOTEPORT;
-          { 
-            char *addr = inet_ntoa( (*(struct in_addr *)value));
-            XPUSHp( addr, strlen(addr));
-          }
-          break;
+			case SASL_IPLOCALPORT:
+			case SASL_IPREMOTEPORT:
+				XPUSHp( (char *)value, strlen((char *)value));
+			break;
+			case SASL_IP_LOCAL:
+				propnum = SASL_IPLOCALPORT;
+				{
+					char *addr = inet_ntoa( (*(struct in_addr *)value));
+					XPUSHp( addr, strlen(addr));
+				}
+			break;
+			case SASL_IP_REMOTE:
+				propnum = SASL_IPREMOTEPORT;
+				{ 
+					char *addr = inet_ntoa( (*(struct in_addr *)value));
+					XPUSHp( addr, strlen(addr));
+				}
+			break;
 #else
-        case SASL_IP_LOCAL:
-        case SASL_IP_REMOTE:
-          XPUSHp( (char *)value, sizeof(struct sockaddr_in));
-          break;
+			case SASL_IP_LOCAL:
+			case SASL_IP_REMOTE:
+				XPUSHp( (char *)value, sizeof(struct sockaddr_in));
+			break;
 #endif
-        default: 
-          XPUSHi(-1);
-      }
-      XSRETURN(1);
-    }
+			default: 
+				XPUSHi(-1);
+		}
+		XSRETURN(1);
+	}
+/* Fill in the properties */
+	for(x=1; x<items; x+=2) {
 
-    /* Fill in the properties */
-    for(x=1; x<items; x+=2) {
+		prop = ST(x);
+		value = (void *)SvPV_nolen( ST(x+1) );
 
-      prop = ST(x);
-      value = (void *)SvPV_nolen( ST(x+1) );
-
-      if (SvTYPE(prop) == SVt_IV) {
-        propnum = SvIV(prop);
-      }
-      else if (SvTYPE(prop) == SVt_PV) {
-        name = SvPV_nolen(prop);
-        propnum = PropertyNumber(name);
-      }
+		if (SvTYPE(prop) == SVt_IV) {
+			propnum = SvIV(prop);
+		}
+		else if (SvTYPE(prop) == SVt_PV) {
+			name = SvPV_nolen(prop);
+			propnum = PropertyNumber(name);
+		}
 #ifdef SASL2
-      if ((propnum == SASL_IP_LOCAL) || (propnum == SASL_IP_REMOTE)) rc = 0;
-      else
+		if ((propnum == SASL_IP_LOCAL) || (propnum == SASL_IP_REMOTE)) 
+			rc = 0;
+		else
 #endif
-      rc = sasl_setprop(sasl->conn, propnum, value);
-      if (SetSaslError(sasl,rc,"sasl_setprop failed.") != SASL_OK) 
-        RETVAL = 1;
-    }
-  }
+			rc = sasl_setprop(sasl->conn, propnum, value);
+		if (SetSaslError(sasl,rc,"sasl_setprop failed.") != SASL_OK) 
+			RETVAL = 1;
+	}
+}
 
 
 
@@ -1838,7 +1851,7 @@ DESTROY(sasl)
  );
 
  # Creating the Authen::SASL::Cyrus instance
- my $conn = $sasl->server_new("service");
+ my $conn = $sasl->server_new("service","","ip;port local","ip;port remote");
 
  # Clients first string (maybe "", depends on mechanism)
  # Client has to start always

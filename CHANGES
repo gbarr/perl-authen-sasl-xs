@@ -1,7 +1,14 @@
 History of updates to Authen::SASL::Cyrus
 
+0.10
+Added the iplocalport and ipremote port to *_new methods, after filling
+in the appropriate string (see doc) ASC is able to manage KERBEROS_V4
+on the server side
+solved bug in property handling (strlen(NULL) after received NULL
+as data from a sasl_getprop)
+
 0.09
-Add callback documenation
+Added callback documenation
 Perl-Callback types (PVMG, PV, PVIV) handling extended 
 
 0.08-desy-internal

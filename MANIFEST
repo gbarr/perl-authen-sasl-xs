@@ -7,4 +7,7 @@ Makefile.PL
 typemap
 lib/Authen/SASL/Cyrus/Security.pm
 t/plain.t
+t/common.pl
+t/gssapiskel.pl
 README
+META.yml                                 Module meta-data (added by MakeMaker)

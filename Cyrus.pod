@@ -11,9 +11,9 @@ Authen::SASL::Cyrus	- XS code to glue Perl SASL to Cyrus SASL
          callback => { NAME => VALUE, NAME => VALUE, ... },
   );
     
-  my $conn = $sasl->client_new(<service>, <server>);
+  my $conn = $sasl->client_new(<service>, <server>, <iplocalport>, <ipremoteport>);
  
-  my $conn = $sasl->server_new(<service>);
+  my $conn = $sasl->server_new(<service>, <host>, <iplocalport>, <ipremoteport>);
 
 =head1 DESCRIPTION
 
@@ -197,7 +197,7 @@ sub canon
 
 =over 4
 
-=item server_new ( SERVICE )
+=item server_new ( SERVICE , HOST = "" , IPLOCALPORT , IPREMOTEPORT )
 
 Constructor for creating server-side sasl contexts.
 
@@ -208,7 +208,7 @@ by the underlying mechanism. An example service therefore is "ldap".
 
 =pod
 
-=item client_new ( SERVICE , HOST )
+=item client_new ( SERVICE , HOST , IPLOCALPORT , IPREMOTEPORT )
 
 Constructor for creating server-side sasl contexts.
 
@@ -225,6 +225,12 @@ B<Remark>:
 This and the C<server_new> function are called by L<Authen::SASL> when using 
 its C<*_new> function. Since the user has to use Authen::SASL anyway, normally
 it is not necessary to call this function directly.
+
+IPLOCALPORT and IPREMOTEPORT arguments are only available, when ASC is 
+linked against Cyrus SASL 2.x. This arguments are needed for KERBEROS_V4
+and CS 2.x on the server side. Don't know if it necessary for the client 
+side. Format of this arguments in an IPv4 enviroment should be: a.b.c.d;port. 
+See L<sasl_server_new> for details.
 
 =over 4
 
@@ -358,7 +364,7 @@ That's why we all using perl, eh?
  );
 
  # Creating the Authen::SASL::Cyrus instance
- my $conn = $sasl->server_new("service");
+ my $conn = $sasl->server_new("service","","ip;port local","ip;port remote");
 
  # Clients first string (maybe "", depends on mechanism)
  # Client has to start always
