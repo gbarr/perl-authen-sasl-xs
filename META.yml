@@ -1,11 +1,11 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Authen-SASL-Cyrus
-version:      0.11
+version:      0.12-server
 version_from: Cyrus.pm
 installdirs:  site
 requires:
-    Authen::SASL:                  2.07
+    Authen::SASL:                  2.08
     Test::More:                    0
     Test::Simple:                  0
 

@@ -1,10 +1,14 @@
 History of updates to Authen::SASL::Cyrus
 
+0.12-server
+merged some of the changes from Authen::SASL::Cyrus 0.12
+changed version named in order to distinguish from the Authen::SASL::Cyrus by Mark Adamson.
+
 0.11
-added setpass and checkpass methods 
+added setpass and checkpass methods
 added setpass callback
 applied a patch by Graham Barr (found with google) for enabling GSSAPI
-authentication with Net::LDAP (fixed a problem in Security.pm)
+authentication (fix a problem in Security.pm)
 added a check for undef return values when using sub-callbacks (Thanks
 to Quanah Gibson-Mount for discovering this one)
 
@@ -17,7 +21,7 @@ as data from a sasl_getprop)
 
 0.09
 Added callback documenation
-Perl-Callback types (PVMG, PV, PVIV) handling extended 
+Perl-Callback types (PVMG, PV, PVIV) handling extended
 
 0.08-desy-internal
 Almost complete rewrite of Perlcallbacks from Cyrus.xs.
@@ -43,7 +47,7 @@ to help PerlCallback() decide which parameter is the perl context.
 
 0.04
 Added a method "securesocket" that takes a file handle and returns a
-new file handle that is tied to the Security subclass added in 0.03. 
+new file handle that is tied to the Security subclass added in 0.03.
 In this way, a client program can take the object returned from
 client_new() and call the securesocket() method on it, passing in the
 client's file handle, without ever having to know about the Security
@@ -52,7 +56,7 @@ file handle as "securesocket", and tie it directly to the Security
 subclass. The difference being "securesocket" returns a new file handle,
 and "tiehandle" ties the handle passed in.
 
-0.03  
+0.03
 Added encryption layer. Cyrus.xs now has encode() and decode()
 methods. Added a "Security" subclass that can be used to tie a
 filehandle to perform encryption on write() and decryption on read().

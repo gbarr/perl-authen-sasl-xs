@@ -5,14 +5,14 @@ Authen::SASL::Cyrus	- XS code to glue Perl SASL to Cyrus SASL
 =head1 SYNOPSIS
 
   use Authen::SASL;
-  
+
   my $sasl = Authen::SASL->new(
          mechanism => 'NAME',
          callback => { NAME => VALUE, NAME => VALUE, ... },
   );
-    
+
   my $conn = $sasl->client_new(<service>, <server>, <iplocalport>, <ipremoteport>);
- 
+
   my $conn = $sasl->server_new(<service>, <host>, <iplocalport>, <ipremoteport>);
 
 =head1 DESCRIPTION
@@ -31,13 +31,13 @@ The constructor may be called with or without arguments. Passing arguments is
 just a short cut to calling the C<mechanism> and C<callback> methods.
 
 You have to use the C<Authen::SASL> new-constructor to create a SASL object.
-The C<Authen::SASL> object then holds all necessary variables and callbacks, which 
+The C<Authen::SASL> object then holds all necessary variables and callbacks, which
 you gave when creating the object.
 C<client_new> and C<server_new> will retrieve needed information from this
 object.
 
 =cut
- 
+
 
 #include <EXTERN.h>
 #include <perl.h>
@@ -77,7 +77,7 @@ struct authensasl {
   char *service;
   char *mech;
   char *user;
-  
+
   int error_code;
   char *additional_errormsg;
 
@@ -91,9 +91,10 @@ struct _perlcontext {
 
 };
 
-// Define missing DEFINES, to help programmers avoiding conflict 
-// between SASL v1 and v2 libs
-// Ignore but allow setting callbacks which are lib version depending
+/* Define missing DEFINES, to help programmers avoiding conflict
+ * between SASL v1 and v2 libs.
+ * Ignore but allow setting callbacks which are lib version depending
+ */
 
 #ifdef SASL2
 
@@ -110,9 +111,29 @@ struct _perlcontext {
 #define SASL_CU_AUTHID  (0x01)
 #define SASL_CU_AUTHZID (0x02)
 
-// Simulation Canon_user Callback in SASL1
+/* Simulation canon_user Callback in SASL1 */
 struct _perlcontext *sp_canon = NULL;
 
+#endif
+
+
+/* Ulrich Pfeifer: Poor man's XPUSH macros for ancient perls. Note that the
+ * stack is extended by a constant 1.  That is OK for the uses below, but
+ * insufficient in general
+ */
+
+#ifndef dXSTARG
+#undef XPUSHi
+#undef XPUSHp
+#define  XPUSHi(A) \
+EXTEND(sp,1); \
+PUSHs(sv_2mortal(newSViv(A)));
+#define XPUSHp(A,B) \
+EXTEND(sp,1); \
+PUSHs(sv_2mortal(newSVpvn((char *)(A),(STRLEN)(B))));
+#endif
+#ifndef SvPV_nolen
+#define SvPV_nolen(A) SvPV(A,PL_na)
 #endif
 
 // internal method for handling errors and their messages
@@ -128,20 +149,20 @@ int SetSaslError(struct authensasl *sasl,int code, const char* msg)
 	{
 		_DEBUG("former error: %s, Code: %d",sasl->additional_errormsg,
 				sasl->error_code);
-		
-		// Do not overwrite Error which are not handled yet, except this one which 
+
+		// Do not overwrite Error which are not handled yet, except this one which
 		// aren't errors at all
 		if (sasl->error_code == SASL_OK ||
 			sasl->error_code == SASL_CONTINUE )
 		{
 			sasl->error_code = code;
-			
+
 			if (sasl->additional_errormsg != NULL)
 				free(sasl->additional_errormsg);
-		
+
 			// Is there a message and is it really an error, otherwise ignore message
-			if (msg != NULL && 
-				code != SASL_OK && 
+			if (msg != NULL &&
+				code != SASL_OK &&
 				code != SASL_CONTINUE)
 				sasl->additional_errormsg = strdup(msg);
 			else
@@ -157,8 +178,8 @@ int SetSaslError(struct authensasl *sasl,int code, const char* msg)
    This is the wrapper function that calls Perl callback functions. The SASL
    library needs a C function to handle callbacks, and this function forms the
    glue to get from the C library back into Perl. The perlcontext is a wrapper
-   around the context given to the "callbacks" method. It tells which Perl 
-   function should be called and what parameter to pass it. 
+   around the context given to the "callbacks" method. It tells which Perl
+   function should be called and what parameter to pass it.
    Different types of callbacks have different "output" parameters to give data
    back to the C library. This function needs to know how to take information
    returned from the Perl callback subroutine and load it back into the output
@@ -169,22 +190,22 @@ int SetSaslError(struct authensasl *sasl,int code, const char* msg)
 */
 
 /*
-	This function executes the perl sub/code and returns the result 
+	This function executes the perl sub/code and returns the result
 	and its length.
 */
 int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *args)
 {
 	int rc = SASL_OK;
-	
+
 	int count;
 	SV *rsv;
 
 	if (result == NULL)
 		return SASL_FAIL;
-	
+
 	if (*result != NULL)
 		free(*result);
-	
+
 	if (len == NULL)
 		return SASL_FAIL;
 
@@ -208,7 +229,7 @@ int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *
 		SAVETMPS ;
 
 		PUSHMARK(SP);
-		if (cp->param) 
+		if (cp->param)
 			XPUSHs( cp->param );
 
 		// Push all other args from Array Args
@@ -216,17 +237,17 @@ int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *
 			while (av_len(args) >= 0)
 				XPUSHs(av_pop(args));
 		PUTBACK ;
-		
+
 		count = call_sv(cp->func, G_SCALAR);
-	 
+
 		/* Refresh the local stack in case the function played with it */
 		SPAGAIN;
-		
+
 		_DEBUG("Count of retvals: %d",count);
-		
+
 		if (count != 1)
 			rc = SASL_FAIL;
-		else 
+		else
 		{
 			rsv = POPs;
 			if (SvOK(rsv)) { // we have to check for undef return values
@@ -254,8 +275,8 @@ int PerlCallback(void *context, int id, const char **result, unsigned *len)
 	int llen, rc=SASL_OK;
 	char *c = NULL;
 
-	if (id != SASL_CB_USER && 
-		id != SASL_CB_AUTHNAME && 
+	if (id != SASL_CB_USER &&
+		id != SASL_CB_AUTHNAME &&
 		id != SASL_CB_LANGUAGE)
 	{
 		croak("Authen::SASL::Cyrus:  Don't know how to handle callback: %x\n", id);
@@ -268,16 +289,16 @@ int PerlCallback(void *context, int id, const char **result, unsigned *len)
 
 	if (rc == SASL_OK)
 	{
-		if (result != NULL) 
+		if (result != NULL)
 			*result = strdup(c);
 
 		if (len != NULL)
 			*len = llen;
-	}  
-	
+	}
+
 	if (c != NULL)
 		free(c);
-	
+
 	return rc;
 }
 
@@ -289,7 +310,7 @@ int PerlCallbackRealm ( void *context, int id, const char **availrealms, const c
 	char *c = NULL;
 
 	AV *args = newAV();
-	
+
 	// Create the array
 	if (availrealms != NULL)
 		for (i=0; availrealms[i] != NULL; i++)
@@ -297,21 +318,21 @@ int PerlCallbackRealm ( void *context, int id, const char **availrealms, const c
 			_DEBUG("added available realm: %s",availrealms[i]);
 			av_push(args, newSVpv(availrealms[i],0));
 		}
-		
+
 	/* HandlePerlStuff */
 	rc = PerlCallbackSub(cp,&c,&len,args);
 
 	// Clear the array
 	av_clear(args);
 	av_undef(args);
-	
+
 	if (rc == SASL_OK)
 	{
 		if (result != NULL)
 			*result = strdup(c);
 		else
 			rc = -1;
-	}	
+	}
 
 	if (c != NULL)
 		free(c);
@@ -345,7 +366,7 @@ int PerlCallbackSecret (sasl_conn_t *conn, void *context, int id, sasl_secret_t 
 	struct _perlcontext *cp = (struct _perlcontext *) context;
 	int len,rc = SASL_OK;
 	char *c = NULL;
-	
+
 	/* HandlePerlStuff */
 	rc = PerlCallbackSub(cp,&c,&len,NULL);
 
@@ -355,7 +376,7 @@ int PerlCallbackSecret (sasl_conn_t *conn, void *context, int id, sasl_secret_t 
 	}
 	else
 		rc = SASL_FAIL;
-	
+
 	if (c != NULL)
 		free(c);
 
@@ -369,7 +390,7 @@ int PerlCallbackCanonUser(sasl_conn_t *conn, void *context, const char *user, un
 	struct _perlcontext *cp = (struct _perlcontext *) context;
 	int rc = SASL_OK,len;
 	char *c = NULL;
-	
+
 	AV *args;
 
 	_DEBUG("Enter CanonUser user(%s,%d) user_realm(%s) out_user(%s) out_umax(%d).",user,ulen,user_realm,out_user,out_umax);
@@ -384,7 +405,7 @@ int PerlCallbackCanonUser(sasl_conn_t *conn, void *context, const char *user, un
 	av_push(args, newSViv(out_umax));
 	av_push(args, newSVpv(user_realm == NULL ? "" : user_realm,0));
 	av_push(args, newSVpv(flags & SASL_CU_AUTHID ? "AUTHID" : "AUTHZID" ,0));
-	
+
 	/* HandlePerlStuff */
 	rc = PerlCallbackSub(cp,&c,&len,args);
 
@@ -406,7 +427,7 @@ int PerlCallbackCanonUser(sasl_conn_t *conn, void *context, const char *user, un
 	This function wraps the sasl_server_userdb_checkpass_t function pointer for
 	perl.
 */
-int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *user, 
+int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *user,
 	const char *pass, unsigned passlen, struct propctx *propctx)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
@@ -418,9 +439,9 @@ int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *us
 	// Create the parameter array and fill it
 	av_push(args, newSVpv(pass,0));
 	av_push(args, newSVpv(user,0));
-	
+
 	_DEBUG("ServerCheckPass %s %s",user,pass);
-	
+
 	/* HandlePerlStuff */
 	rc = PerlCallbackSub(cp,&c,&len,args);
 
@@ -432,9 +453,9 @@ int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *us
 
 	if (c != NULL)
 		free(c);
-	
+
 	_DEBUG("Checkpass retval: %d",rc);
-	
+
 	return rc;
 }
 
@@ -455,7 +476,7 @@ int PerlCallbackServerSetPass(sasl_conn_t *conn, void *context,
 	else
 		av_push(args,newSVpv(pass,passlen));
 	av_push(args,newSVpv(user,0));
-	
+
 	rc = PerlCallbackSub(cp,&c,&len,args);
 
 	av_clear(args);
@@ -483,7 +504,7 @@ int PerlCallbackAuthorize( sasl_conn_t *conn, void *context,
 	av_push(args, newSVpv(auth_identity,alen));
 	av_push(args, newSVpv(requested_user,rlen));
 // av_push(args, newSVpv(def_realm, urlen));
-		
+
 	/* HandlePerlStuff */
 	rc = PerlCallbackSub(cp,&c,&len,args);
 
@@ -495,9 +516,9 @@ int PerlCallbackAuthorize( sasl_conn_t *conn, void *context,
 
 	if (c != NULL)
 		free(c);
-	
+
 	_DEBUG("Authorize: %x",rc);
-	
+
 	return rc;
 }
 
@@ -515,12 +536,12 @@ int PerlCallbackCanonUser1( void *context, const char *auth_identity, const char
 		strcpy(c,"");
 	else
 		return SASL_FAIL;
-	
+
 	_DEBUG("%s,%s",auth_identity,requested_user);
 
 	if (strcmp(auth_identity,requested_user))
 		rc = PerlCallbackCanonUser(NULL,context,requested_user,strlen(requested_user),SASL_CU_AUTHZID,"",c,255,&len);
-	
+
 	rc = PerlCallbackCanonUser(NULL,context,auth_identity,strlen(auth_identity),SASL_CU_AUTHID,"",c,255,&len);
 
 	*user = strdup(c);
@@ -543,7 +564,7 @@ int PerlCallbackAuthorize( void *context, const char *auth_identity, const char 
 	if (sp_canon != NULL)
 	{
 		PerlCallbackCanonUser1( sp_canon, auth_identity, requested_user,(const char**) &c, errstr);
-		free(c); // Throw away 
+		free(c); // Throw away
 		c = NULL;
 	}
 
@@ -562,7 +583,7 @@ int PerlCallbackAuthorize( void *context, const char *auth_identity, const char 
 
 	if (c != NULL)
 		free(c);
-	
+
 	return rc;
 }
 
@@ -587,19 +608,19 @@ int PerlCallbackGetSecret( void *context, const char *mechanism, const char *aut
 	_DEBUG("GetSecret, %s ,%s ,%s",mechanism,auth_identity,realm);
 
 	if (rc == SASL_OK && c != NULL)
-		rc = FillSecret_t(c,len,secret);	
+		rc = FillSecret_t(c,len,secret);
 	else
 		rc = SASL_FAIL;
 
 	_DEBUG("GetSecret, pass: %s, rc: %x",(*secret)->data,rc);
-	
+
 	if (c != NULL)
 		free(c);
-	
+
 	return rc;
 }
 
-#endif 
+#endif
 
 
 
@@ -607,12 +628,12 @@ int PerlCallbackGetSecret( void *context, const char *mechanism, const char *aut
 
 =head1 CALLBACKS
 
-Callbacks are very important. It depends on the mechanism which callbacks 
+Callbacks are very important. It depends on the mechanism which callbacks
 have to be set. It is not a failure to set callbacks even they aren't used.
 (e.g. password-callback when using GSSAPI or KERBEROS_V4)
 
-The Cyrus-SASL library uses callbacks when the application 
-needs some information. Common reasons are getting 
+The Cyrus-SASL library uses callbacks when the application
+needs some information. Common reasons are getting
 usernames and passwords.
 
 Authen::SASL::Cyrus allows Cyrus-SASL to use perl-variables and perl-subs
@@ -637,7 +658,7 @@ This callbacks represent the C<sasl_getsimple_t> from the library.
 
 Input: none
 
-Output: C<username>, C<authname> or C<language> 
+Output: C<username>, C<authname> or C<language>
 
 =item password (client)
 
@@ -661,7 +682,7 @@ Output: the chosen realm
 
 =item checkpass (server, SASL v2 only)
 
-This callback represents the C<sasl_server_userdb_checkpass_t> from the 
+This callback represents the C<sasl_server_userdb_checkpass_t> from the
 library.
 
 Input: C<username>, C<password>
@@ -679,10 +700,10 @@ Input: C<mechanism>, C<username>, C<default_realm>
 Output: C<secret_phrase (password)>
 
 B<Remark>: Programmers that are using should specify both callbacks (getsecret and checkpass).
-Then, depending on you Cyrus SASL library either the one or the other is called. Cyrus SASL v1 
+Then, depending on you Cyrus SASL library either the one or the other is called. Cyrus SASL v1
 ignores checkpass and Cyrus SASL v2 ignores getsecret.
 
-=item putsecret (SASL v1) and setpass (SASL v2) 
+=item putsecret (SASL v1) and setpass (SASL v2)
 
 are currently not supported (and won't be, unless someone needs it).
 
@@ -694,17 +715,17 @@ Input: C<Type of principal>, C<principal>, C<userrealm> and maximal allowed leng
 
 Output: canonicalised C<principal>
 
-C<Type of principal> is "AUTHID" for Authentication ID or "AUTHZID" 
+C<Type of principal> is "AUTHID" for Authentication ID or "AUTHZID"
 for Authorisation ID.
 
 B<Remark>: This callback is ideal to get the username of the user using your service.
 If C<Authen::SASL::Cyrus> is linked to Cyrus SASL v1, which doesn't have a canonuser callback,
-it will simulate this callback by using the authorize callback internally. Don't worry, the 
+it will simulate this callback by using the authorize callback internally. Don't worry, the
 authorize callback is available anyway.
 
 =item authorize (server)
 
-This callback represents the C<sasl_authorize_t> from the library. 
+This callback represents the C<sasl_authorize_t> from the library.
 
 Input: C<authenticated_username>, C<requested_username>, (C<default_realm> SASL v2 only)
 
@@ -713,9 +734,9 @@ There is something TODO, I think.
 
 =item setpass (server, SASL v2 only)
 
-This callback represents the C<sasl_server_userdb_setpass_t> from the library. 
+This callback represents the C<sasl_server_userdb_setpass_t> from the library.
 
-Input: C<username>, C<new_password>, C<flags> (0x01 CREATE, 0x02 DISABLE, 
+Input: C<username>, C<new_password>, C<flags> (0x01 CREATE, 0x02 DISABLE,
 0x04 NOPLAIN)
 
 Out: true or false
@@ -724,13 +745,13 @@ Out: true or false
 
 =head2 Ways to pass a callback
 
-Authen::SASL::Cyrus supports three different ways to pass a callback 
+Authen::SASL::Cyrus supports three different ways to pass a callback
 
 =over 4
 
 =item CODEREF
 
-If the value passed is a code reference then, when needed, it will be called. 
+If the value passed is a code reference then, when needed, it will be called.
 
 =item ARRAYREF
 
@@ -751,7 +772,7 @@ $sasl = new Authen::SASL (
     callback => {
       # Scalar
       user => "mannfred",
-      pass => $password, 
+      pass => $password,
       language => 1,
 
       # Coderef
@@ -827,22 +848,22 @@ void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
 	switch (SvTYPE(action)) {
 		case SVt_PVCV:	/* user => sub { },  user => \&func */
 				pcb->func = action;
-				__DEBUG("SVt_PVCV"); 
+				__DEBUG("SVt_PVCV");
 			break;
-			
+
 		case SVt_PVAV:	/* user => [ \&func, $param ] */
 				pcb->func = av_shift((AV *)action); pcb->param = av_shift((AV *)action);
 				_DEBUG("Parametered Callback: %s",SvPV_nolen(pcb->param));
 			break;
-			
+
 		case SVt_PV:	/* user => $param */
 		case SVt_PVMG:	/* user => $self->{value} */
 		case SVt_PVIV:  /* $self->{value} = ""; [...] user => $self->{value} */
 				pcb->param = action;
 				_DEBUG("SVt- PV PVMG PVIV (%s)",SvPV_nolen(pcb->param));
 			break;
-			
-		case SVt_IV: 	/*  user => 1 */
+
+		case SVt_IV:	/*  user => 1 */
 				pcb->intparam = SvIV(action);
 				__DEBUG("SVt_IV");
 			break;
@@ -862,15 +883,15 @@ void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
 		case SASL_CB_LANGUAGE:
 				 cb->proc = PerlCallback;
 			break;
-		
+
 		case SASL_CB_PASS:
 				cb->proc = PerlCallbackSecret;
 			break;
-			
+
 		case SASL_CB_GETREALM:
 				cb->proc = PerlCallbackRealm;
 			break;
-	
+
 		case SASL_CB_ECHOPROMPT:
 		case SASL_CB_NOECHOPROMPT:
 			break;
@@ -880,14 +901,14 @@ void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
 
 		case SASL_CB_CANON_USER:
 				cb->proc = PerlCallbackCanonUser;
-			break;	
+			break;
 #ifdef SASL2
 		case SASL_CB_SERVER_USERDB_CHECKPASS:
 				cb->proc = PerlCallbackServerCheckPass;
 			break;
 
 		case SASL_CB_SERVER_USERDB_SETPASS:
-				cb->proc = PerlCallbackServerSetPass; 
+				cb->proc = PerlCallbackServerSetPass;
 			break;
 #else
 		// SASL 1 Servercallbacks:
@@ -896,7 +917,7 @@ void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
 			break;
 		case SASL_CB_SERVER_PUTSECRET:
 				// Not implemented yet maybe TODO, if ever needed
-			break;			
+			break;
 #endif
 		default:
 			break;
@@ -941,7 +962,7 @@ void ExtractParentCallbacks(SV *parent, struct authensasl *sasl)
 	if (SvTYPE(SvRV(val)) != SVt_PVHV) return;
 	hash = (HV *)SvRV(val);
 
-	/* Run through all of parent's callback types, counting them 
+	/* Run through all of parent's callback types, counting them
 	 * Only valid (non-zero) callbacks are counted.
 	 */
 	hv_iterinit(hash);
@@ -971,12 +992,12 @@ void ExtractParentCallbacks(SV *parent, struct authensasl *sasl)
 
 	l = (count + 1) * sizeof(sasl_callback_t);
 	sasl->callbacks = (sasl_callback_t *)malloc(l);
-	if (sasl->callbacks == NULL) 
+	if (sasl->callbacks == NULL)
 		croak("Out of memory\n");
-	
+
 	memset(sasl->callbacks, 0, l);
 
-	/* Run through all of parent's callback types, fill in the sasl->callbacks 
+	/* Run through all of parent's callback types, fill in the sasl->callbacks
 	 * Only valid (non-zero) callbacks will be filled in
 	 */
 	hv_iterinit(hash);
@@ -1065,16 +1086,16 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 
 	if (sasl == NULL)
 		return SASL_FAIL;
-	
+
 	// TODO if struct is already in use and now another type
 	if (*sasl != NULL && (*sasl)->is_client != client)
 		return SASL_FAIL;
 
 	if (*sasl == NULL)
-	{	
+	{
 		// Initialize the given sasl
 		*sasl = (struct authensasl *) malloc (sizeof(struct authensasl));
-		if (*sasl == NULL) 
+		if (*sasl == NULL)
 			croak("Out of memory\n");
 		memset(*sasl, 0, sizeof(struct authensasl));
 	}
@@ -1091,7 +1112,7 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 	}
 	else
 		(*sasl)->server = strdup(host);
-		
+
 	if (!service || !*service)
 	{
 		SetSaslError((*sasl),SASL_FAIL,"Need a 'service' name.");
@@ -1104,14 +1125,14 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 	ExtractParentCallbacks(parent, *sasl);
 
 	/* Extract mechanism info from the parent object */
-	if (parent && SvROK(parent) && (SvTYPE(SvRV(parent)) == SVt_PVHV)) 
+	if (parent && SvROK(parent) && (SvTYPE(SvRV(parent)) == SVt_PVHV))
 	{
 		hash = (HV *)SvRV(parent);
 		hashval = hv_fetch(hash, "mechanism", 9, 0);
 		_DEBUG("%d, %d, %s",SvTYPE(*hashval),SVt_PV,SvPV_nolen(*hashval));
-		if (hashval  && *hashval && SvTYPE(*hashval) == SVt_PV) 
+		if (hashval  && *hashval && SvTYPE(*hashval) == SVt_PV)
 		{
-			if ((*sasl)->mech) 
+			if ((*sasl)->mech)
 				free((*sasl)->mech);
 			(*sasl)->mech = strdup(SvPV_nolen(*hashval));
 		}
@@ -1121,17 +1142,17 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 		}
 	}
 
-	return (*sasl)->error_code;	
+	return (*sasl)->error_code;
 }
 
 #ifdef SASL2
 void set_secprop (struct authensasl *sasl)
 {
 	sasl_security_properties_t ssp;
-	
+
 	if (sasl == NULL)
 		return;
-	
+
 	memset(&ssp, 0, sizeof(ssp));
 	ssp.maxbufsize = 0xFFFF;
 	ssp.max_ssf = 0xFF;
@@ -1173,12 +1194,12 @@ server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NUL
 /* TODO realm parameter */
 		struct authensasl *sasl = NULL;
 		int rc;
-		
+
 		if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_SERVER)) != SASL_OK)
 			croak("Saslinit failed. (%x)\n",rc);
-			
+
 		_DEBUG("server_new: Service: %s Server: %s, %s %s %s %s",sasl->service,sasl->server,service,host,iplocalport,ipremoteport);
-	
+
 		if ((rc = sasl_server_init(NULL,sasl->service)) != SASL_OK)
 			SetSaslError(sasl,rc,"server_init error.");
 #ifdef SASL2
@@ -1208,20 +1229,20 @@ Creates and returns a new connection object blessed into Authen::SASL::Cyrus.
 It is on that returned reference that the following methods are available.
 The SERVICE is the name of the service being implemented, which may be used
 by the underlying mechanism. An example service is "ldap". The HOST is the
-name of the server being contacted, which may also be used 
+name of the server being contacted, which may also be used
 by the underlying mechanism.
 
 =back
 
 B<Remark>:
-This and the C<server_new> function are called by L<Authen::SASL> when using 
+This and the C<server_new> function are called by L<Authen::SASL> when using
 its C<*_new> function. Since the user has to use Authen::SASL anyway, normally
 it is not necessary to call this function directly.
 
-IPLOCALPORT and IPREMOTEPORT arguments are only available, when ASC is 
+IPLOCALPORT and IPREMOTEPORT arguments are only available, when ASC is
 linked against Cyrus SASL 2.x. This arguments are needed for KERBEROS_V4
-and CS 2.x on the server side. Don't know if it necessary for the client 
-side. Format of this arguments in an IPv4 environment should be: a.b.c.d;port. 
+and CS 2.x on the server side. Don't know if it necessary for the client
+side. Format of this arguments in an IPv4 environment should be: a.b.c.d;port.
 See sasl_server_new(3) for details.
 
 =over 4
@@ -1241,11 +1262,11 @@ client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL..
   CODE:
   {
 	struct authensasl *sasl = NULL;
-	int rc;	
-	
+	int rc;
+
 	if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_CLIENT)) != SASL_OK)
 		croak("Saslinit failed. (%x)\n",rc);
-	
+
     sasl_client_init(NULL);
 	_DEBUG("service: %s, host: %s, mech: %s",sasl->service,sasl->server,sasl->mech);
 #ifdef SASL2
@@ -1270,10 +1291,10 @@ client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL..
 
 =item server_start ( CHALLENGE )
 
-C<server_start> begins the authentication using the chosen mechanism. 
+C<server_start> begins the authentication using the chosen mechanism.
 If the mechanism is not supported by the installed Cyrus-SASL it fails.
 Because for some mechanisms the client has to start the negotiation,
-you can give the client challenge as a parameter. 
+you can give the client challenge as a parameter.
 
 =cut
 
@@ -1290,20 +1311,20 @@ server_start(sasl,instring=NULL)
 		char *outstring = NULL;
 		const char *error =NULL;
 #endif
-	
+
 	PPCODE:
 		_DEBUG("serverstart mech: %s",sasl->mech);
-	
+
 		if (sasl->error_code)
 			XSRETURN_UNDEF;
 
 		if (instring != NULL)
-		   	SvPV(ST(1),inlen);
+			SvPV(ST(1),inlen);
 		else
 			inlen = 0;
 
 		_DEBUG("serverstart len: %d",inlen);
-		
+
 		_DEBUG("Server step: %s %d", instring,inlen);
 #ifdef SASL2
 		rc = sasl_server_start(sasl->conn,sasl->mech, instring, inlen, &outstring, &outlen);
@@ -1331,7 +1352,7 @@ char *
 client_start(sasl)
     struct authensasl *sasl
   PREINIT:
-  	int rc;
+	int rc;
 	unsigned outlen;
 #ifdef SASL2
 	const char *outstring;
@@ -1341,7 +1362,7 @@ client_start(sasl)
 
 	const char *mech;
   PPCODE:
-		if (sasl->error_code != SASL_OK) 
+		if (sasl->error_code != SASL_OK)
 			XSRETURN_UNDEF;
 
       _DEBUG("mech: %s",sasl->mech);
@@ -1366,7 +1387,7 @@ first parameter you give is the clients challenge/response.
 
 =cut
 
-	
+
 char *
 server_step(sasl, instring)
 	struct authensasl *sasl
@@ -1379,14 +1400,14 @@ server_step(sasl, instring)
 		const char *error=NULL;
 #endif
 		int rc;
-		unsigned int inlen, outlen=0;	
+		unsigned int inlen, outlen=0;
 	PPCODE:
-		if (sasl->error_code != SASL_CONTINUE) 
+		if (sasl->error_code != SASL_CONTINUE)
 			XSRETURN_UNDEF;
 
 		SvPV(ST(1),inlen);
 		_DEBUG("Server step: %s %d", instring,inlen);
-#ifdef SASL2	
+#ifdef SASL2
 		rc = sasl_server_step(sasl->conn,instring,inlen,&outstring,&outlen);
 #else
 		rc = sasl_server_step(sasl->conn,instring,inlen,&outstring,&outlen,NULL);
@@ -1397,7 +1418,7 @@ server_step(sasl, instring)
 		if (rc != SASL_OK && rc != SASL_CONTINUE)
 			XSRETURN_UNDEF;
 		else
-	    	XPUSHp(outstring, outlen);
+			XPUSHp(outstring, outlen);
 
 =pod
 
@@ -1406,10 +1427,10 @@ server_step(sasl, instring)
 =back
 
 B<Remark>:
-C<client_start>, C<client_step>, C<server_start> and C<server_step> 
+C<client_start>, C<client_step>, C<server_start> and C<server_step>
 will return the respective sasl response or undef. The returned value
 says nothing about the current negotiation status. It is absolutely possible
-that one of these functions return undef and everything is fine for SASL, 
+that one of these functions return undef and everything is fine for SASL,
 there is only another step needed.
 
 Therefore you have to check C<need_step> and C<code> during negotiation.
@@ -1435,13 +1456,13 @@ client_step(sasl, instring)
     int rc;
     unsigned int inlen, outlen=0;
 
-    if (sasl->error_code != SASL_CONTINUE) 
+    if (sasl->error_code != SASL_CONTINUE)
       XSRETURN_UNDEF;
-    
+
     SvPV(ST(1),inlen);
 
 	_DEBUG("client_step: inlen: %d",inlen);
-	
+
     rc = sasl_client_step(sasl->conn, instring, inlen, NULL, &outstring, &outlen);
 
 	SetSaslError(sasl,rc,"client_step.");
@@ -1466,7 +1487,7 @@ and END is the token which will be put at the end of returned string.
 
 char *
 listmech(sasl,start="",separator="|",end="")
-	struct authensasl *sasl;	
+	struct authensasl *sasl;
 	const char* start;
 	const char* separator;
 	const char* end;
@@ -1482,7 +1503,7 @@ listmech(sasl,start="",separator="|",end="")
 	    unsigned mechlen;
 
 		rc = sasl_listmech(sasl->conn,sasl->user,start,separator,end,&mechs,&mechlen,&mechcount);
-		
+
 		if (rc == SASL_OK)
 			XPUSHp(mechs,mechlen);
 		else
@@ -1500,16 +1521,16 @@ listmech(sasl,start="",separator="|",end="")
 =item setpass(user, newpassword, oldpassword, flags)
 
 =item checkpass(user, password)
-	
+
 C<setpass> and C<checkpass> is only available when using Cyrus-SASL 2.x library.
 
-C<setpass> sets a new password (depends on the mechanism if the setpass callback 
-is called). C<checkpass> checks a password for the user (calls the checkpass 
+C<setpass> sets a new password (depends on the mechanism if the setpass callback
+is called). C<checkpass> checks a password for the user (calls the checkpass
 callback).
 
-For both function see the man pages of the Cyrus SASL for a detailed description. 
+For both function see the man pages of the Cyrus SASL for a detailed description.
 
-Both functions return true on success, false otherwise. 
+Both functions return true on success, false otherwise.
 
 =cut
 
@@ -1520,7 +1541,7 @@ setpass(sasl, user, pass, oldpass, flags=0)
 	const char *pass;
 	const char *oldpass;
 	int flags;
-PREINIT: 
+PREINIT:
 		int rc;
 PPCODE:
 		_DEBUG("setpass: %s,%s,%s,%d",user,pass,oldpass,flags);
@@ -1540,21 +1561,21 @@ PREINIT:
 PPCODE:
 	_DEBUG("checkpass: %s,%s",user,pass);
 	rc = sasl_checkpass (sasl->conn,
-			user, strlen(user), 
+			user, strlen(user),
 			pass, strlen(pass));
 	XPUSHi(rc);
-	
+
 =pod
 
 =item global_listmech ( )
 
 C<global_listmech> is only available when using Cyrus-SASL 2.x library.
 
-It returns an array with all mechanisms loaded by the library. 
+It returns an array with all mechanisms loaded by the library.
 
 =cut
 
-	
+
 void
 global_listmech(sasl)
 	struct authensasl *sasl
@@ -1562,7 +1583,7 @@ global_listmech(sasl)
 		int i;
 		const char **mechs;
 	PPCODE:
-		if (sasl->error_code) 
+		if (sasl->error_code)
 			XSRETURN_UNDEF;
 		mechs = sasl_global_listmech();
 		if (mechs)
@@ -1602,14 +1623,14 @@ encode(sasl, instring)
 #endif
     int rc;
 	unsigned int inlen, outlen=0;
-	if (sasl->error_code) 
+	if (sasl->error_code)
 		XSRETURN_UNDEF;
-    
+
 	instring = SvPV(ST(1),inlen);
 
 	rc = sasl_encode(sasl->conn, instring, inlen, &outstring, &outlen);
     if (SetSaslError(sasl,rc,"sasl_encode failed") != SASL_OK)
-     	XSRETURN_UNDEF;
+		XSRETURN_UNDEF;
 	else
 	    XPUSHp(outstring, outlen);
   }
@@ -1631,9 +1652,9 @@ decode(sasl, instring)
     int rc;
     unsigned int inlen, outlen=0;
 
-    if (sasl->error_code) 
+    if (sasl->error_code)
        XSRETURN_UNDEF;
-	   
+
     instring = SvPV(ST(1),inlen);
 
     rc = sasl_decode(sasl->conn, instring, inlen, &outstring, &outlen);
@@ -1645,7 +1666,7 @@ decode(sasl, instring)
 
 
 
-   
+
 int
 callback(sasl, ...)
 	struct authensasl *sasl
@@ -1653,13 +1674,13 @@ callback(sasl, ...)
 /*
  This function is unnecessary since there is no
  chance for changing callbacks in sasl after (server|
- client)_new function calls. But without calling one 
- of these functions (from perl) you do not have an 
- object of this class. So you cannot call ->callback. 
+ client)_new function calls. But without calling one
+ of these functions (from perl) you do not have an
+ object of this class. So you cannot call ->callback.
  At least I was not able to use this function to fill in
  a callback with this function.
  -Patrick
-*/	
+*/
 	croak("Deprecated. Don't use, it isn't working anymore.");
 		RETVAL = 0;
 	OUTPUT:
@@ -1669,12 +1690,12 @@ callback(sasl, ...)
 
 =item error ( )
 
-C<error> returns an array with all known error messages. 
+C<error> returns an array with all known error messages.
 Basicly the sasl_errstring function is called with the current error_code.
-When using Cyrus-SASL 2.x library also the string returned by sasl_errdetail 
-is given back. Additionally the special Authen::SASL::Cyrus advise is 
+When using Cyrus-SASL 2.x library also the string returned by sasl_errdetail
+is given back. Additionally the special Authen::SASL::Cyrus advise is
 returned if set.
-After calling the C<error> function, the error code and the special advice 
+After calling the C<error> function, the error code and the special advice
 are thrown away.
 
 =cut
@@ -1685,7 +1706,7 @@ error(sasl)
   PPCODE:
   {
 	_DEBUG("Current Error %x",sasl->error_code);
-  
+
 	XPUSHs(newSVpv((char *)sasl_errstring(sasl->error_code,NULL,NULL),0));
 #ifdef SASL2
 	XPUSHs(newSVpv((char *)sasl_errdetail(sasl->conn),0));
@@ -1786,7 +1807,7 @@ service(sasl, ...)
 =item need_step ( )
 
 C<need_step> returns true if another step is need by the SASL library. Otherwise
-false is returned. You can also use C<code == 1> but it looks smarter I think. 
+false is returned. You can also use C<code == 1> but it looks smarter I think.
 That's why we all using perl, eh?
 
 =cut
@@ -1831,7 +1852,7 @@ PPCODE:
 		name = SvPV_nolen(ST(1));
 		propnum = PropertyNumber(name);
 		rc = sasl_getprop(sasl->conn, propnum, &value);
-		
+
 		if (value == NULL || rc != SASL_OK)
 			XSRETURN_UNDEF;
 
@@ -1862,7 +1883,7 @@ PPCODE:
 			break;
 			case SASL_IP_REMOTE:
 				propnum = SASL_IPREMOTEPORT;
-				{ 
+				{
 					char *addr = inet_ntoa( (*(struct in_addr *)value));
 					XPUSHp( addr, strlen(addr));
 				}
@@ -1873,7 +1894,7 @@ PPCODE:
 				XPUSHp( (char *)value, sizeof(struct sockaddr_in));
 			break;
 #endif
-			default: 
+			default:
 				XPUSHi(-1);
 		}
 		XSRETURN(1);
@@ -1891,12 +1912,12 @@ PPCODE:
 			propnum = PropertyNumber(name);
 		}
 #ifdef SASL2
-		if ((propnum == SASL_IP_LOCAL) || (propnum == SASL_IP_REMOTE)) 
+		if ((propnum == SASL_IP_LOCAL) || (propnum == SASL_IP_REMOTE))
 			rc = 0;
 		else
 #endif
 			rc = sasl_setprop(sasl->conn, propnum, value);
-		if (SetSaslError(sasl,rc,"sasl_setprop failed.") != SASL_OK) 
+		if (SetSaslError(sasl,rc,"sasl_setprop failed.") != SASL_OK)
 			RETVAL = 1;
 	}
 }
@@ -1906,7 +1927,7 @@ DESTROY(sasl)
     struct authensasl *sasl
   CODE:
   {
-  	__DEBUG("DESTROY");
+	__DEBUG("DESTROY");
     if (sasl->conn)  sasl_dispose(&sasl->conn);
     if (sasl->callbacks) {
       free(sasl->callbacks[sasl->callback_count].context);
@@ -1916,6 +1937,7 @@ DESTROY(sasl)
     if (sasl->mech)      free(sasl->mech);
 	if (sasl->additional_errormsg)  free(sasl->additional_errormsg);
     free(sasl);
+	sasl_done();
   }
 
 
@@ -1999,11 +2021,11 @@ I tested ASC (server and client) with the following mechanisms:
 
 =over 4
 
-=item GSSAPI 
+=item GSSAPI
 
 Don't forget to create keytab. Non-root keytabs can be specify through $ENV{'KRB5_KTNAME'} (Heimdal >= 0.6, MIT).
 
-=item KERBEROS_V4 
+=item KERBEROS_V4
 
 Available since 0.10, you have to add IPLOCALPORT and IPREMOTEPORT to *_new functions.
 
@@ -2023,9 +2045,9 @@ Originally written by Mark Adamson <mark@nb.net>
 
 Cyrus-SASL 2.x support by Leif Johansson
 
-Glue for server_* and some other structural improvements by Patrick Boettcher <patrick.boettcher@desy.de>
+Glue for server_* and many other structural improvements by Patrick Boettcher <patrick.boettcher@desy.de>
 
-Please report any bugs, or post any suggestions, to the author.
+Please report any bugs, or post any suggestions, to the authors.
 
 =head1 THANKS
 
@@ -2035,8 +2057,8 @@ Please report any bugs, or post any suggestions, to the author.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2003-4 Patrick Boettcher, DESY Zeuthen. All rights reserved.
-Copyright (c) 2003 Carnegie Mellon University. All rights reserved. 
+Copyright (c) 2003-5 Patrick Boettcher, DESY Zeuthen. All rights reserved.
+Copyright (c) 2003 Carnegie Mellon University. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
