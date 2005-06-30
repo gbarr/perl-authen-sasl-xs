@@ -5,7 +5,7 @@ require Exporter;
 
 @ISA = qw(DynaLoader);# Exporter);
 
-$VERSION = "0.12-server";
+$VERSION = "0.13-server";
 
 bootstrap Authen::SASL::Cyrus $VERSION;
 

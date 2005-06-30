@@ -84,6 +84,8 @@ struct authensasl {
   int is_client;
 };
 
+typedef struct authensasl * Authen_SASL_Cyrus;
+
 struct _perlcontext {
   SV *func;
   SV *param;
@@ -137,7 +139,7 @@ PUSHs(sv_2mortal(newSVpvn((char *)(A),(STRLEN)(B))));
 #endif
 
 // internal method for handling errors and their messages
-int SetSaslError(struct authensasl *sasl,int code, const char* msg)
+int SetSaslError(Authen_SASL_Cyrus sasl,int code, const char* msg)
 {
 	if (sasl == NULL)
 #ifdef SASL2
@@ -931,7 +933,7 @@ void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
  */
 
 static
-void ExtractParentCallbacks(SV *parent, struct authensasl *sasl)
+void ExtractParentCallbacks(SV *parent, Authen_SASL_Cyrus sasl)
 {
 	char *key;
 	int count=0,i;
@@ -1079,7 +1081,7 @@ int PropertyNumber(char *name)
 }
 
 
-int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int client)
+int init_sasl (SV* parent,char* service,char* host, Authen_SASL_Cyrus *sasl,int client)
 {
 	HV *hash;
 	SV **hashval;
@@ -1094,7 +1096,7 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 	if (*sasl == NULL)
 	{
 		// Initialize the given sasl
-		*sasl = (struct authensasl *) malloc (sizeof(struct authensasl));
+		*sasl = (Authen_SASL_Cyrus) malloc (sizeof(struct authensasl));
 		if (*sasl == NULL)
 			croak("Out of memory\n");
 		memset(*sasl, 0, sizeof(struct authensasl));
@@ -1146,7 +1148,7 @@ int init_sasl (SV* parent,char* service,char* host, struct authensasl **sasl,int
 }
 
 #ifdef SASL2
-void set_secprop (struct authensasl *sasl)
+void set_secprop (Authen_SASL_Cyrus sasl)
 {
 	sasl_security_properties_t ssp;
 
@@ -1181,7 +1183,7 @@ by the underlying mechanism. An example service therefore is "ldap".
 =cut
 
 
-struct authensasl *
+Authen_SASL_Cyrus
 server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NULL ...)
 	char *pkg
 	SV *parent
@@ -1192,7 +1194,7 @@ server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NUL
 	CODE:
 	{
 /* TODO realm parameter */
-		struct authensasl *sasl = NULL;
+		Authen_SASL_Cyrus sasl = NULL;
 		int rc;
 
 		if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_SERVER)) != SASL_OK)
@@ -1251,7 +1253,7 @@ See SYNOPSIS for an example.
 
 =cut
 
-struct authensasl *
+Authen_SASL_Cyrus
 client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL...)
     char *pkg
     SV *parent
@@ -1261,7 +1263,7 @@ client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL..
 	char *ipremoteport
   CODE:
   {
-	struct authensasl *sasl = NULL;
+	Authen_SASL_Cyrus sasl = NULL;
 	int rc;
 
 	if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_CLIENT)) != SASL_OK)
@@ -1300,7 +1302,7 @@ you can give the client challenge as a parameter.
 
 char *
 server_start(sasl,instring=NULL)
-	struct authensasl *sasl;
+	Authen_SASL_Cyrus sasl;
 	const char *instring;
 	PREINIT:
 		int rc;
@@ -1350,7 +1352,7 @@ Client has to start the negotiation always.
 
 char *
 client_start(sasl)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   PREINIT:
 	int rc;
 	unsigned outlen;
@@ -1390,7 +1392,7 @@ first parameter you give is the clients challenge/response.
 
 char *
 server_step(sasl, instring)
-	struct authensasl *sasl
+	Authen_SASL_Cyrus sasl
 	char *instring
 	PREINIT:
 #ifdef SASL2
@@ -1444,7 +1446,7 @@ See example below.
 
 char *
 client_step(sasl, instring)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
     char *instring
   PPCODE:
   {
@@ -1487,7 +1489,7 @@ and END is the token which will be put at the end of returned string.
 
 char *
 listmech(sasl,start="",separator="|",end="")
-	struct authensasl *sasl;
+	Authen_SASL_Cyrus sasl;
 	const char* start;
 	const char* separator;
 	const char* end;
@@ -1536,7 +1538,7 @@ Both functions return true on success, false otherwise.
 
 int
 setpass(sasl, user, pass, oldpass, flags=0)
-	struct authensasl *sasl;
+	Authen_SASL_Cyrus sasl;
 	const char *user;
 	const char *pass;
 	const char *oldpass;
@@ -1553,7 +1555,7 @@ PPCODE:
 
 
 int checkpass(sasl,user,pass)
-	struct authensasl *sasl;
+	Authen_SASL_Cyrus sasl;
 	const char *user;
 	const char *pass;
 PREINIT:
@@ -1578,7 +1580,7 @@ It returns an array with all mechanisms loaded by the library.
 
 void
 global_listmech(sasl)
-	struct authensasl *sasl
+	Authen_SASL_Cyrus sasl
 	PREINIT:
 		int i;
 		const char **mechs;
@@ -1612,7 +1614,7 @@ It depends on the used mechanism how secure the encryption will be.
 
 char *
 encode(sasl, instring)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
     char *instring
   PPCODE:
   {
@@ -1640,7 +1642,7 @@ encode(sasl, instring)
 
 char *
 decode(sasl, instring)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
     char *instring
   PPCODE:
   {
@@ -1669,7 +1671,7 @@ decode(sasl, instring)
 
 int
 callback(sasl, ...)
-	struct authensasl *sasl
+	Authen_SASL_Cyrus sasl
 	CODE:
 /*
  This function is unnecessary since there is no
@@ -1702,7 +1704,7 @@ are thrown away.
 
 char *
 error(sasl)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   PPCODE:
   {
 	_DEBUG("Current Error %x",sasl->error_code);
@@ -1736,7 +1738,7 @@ C<code> returns the current Cyrus-SASL error code.
 
 int
 code(sasl)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   CODE:
     RETVAL=sasl->error_code;
   OUTPUT:
@@ -1753,7 +1755,7 @@ C<mechanism> returns the current used authentication mechanism.
 
 char *
 mechanism(sasl)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   CODE:
     RETVAL = sasl->mech;
   OUTPUT:
@@ -1763,7 +1765,7 @@ mechanism(sasl)
 
 char *
 host(sasl, ...)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   CODE:
     if (items > 1) {
       if (sasl->server) free(sasl->server);
@@ -1777,7 +1779,7 @@ host(sasl, ...)
 
 char *
 user(sasl, ...)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   CODE:
     if (items > 1) {
       if (sasl->user) free(sasl->user);
@@ -1791,7 +1793,7 @@ user(sasl, ...)
 
 char *
 service(sasl, ...)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   CODE:
     if (items > 1) {
       if (sasl->service) free(sasl->service);
@@ -1814,7 +1816,7 @@ That's why we all using perl, eh?
 
 int
 need_step(sasl)
-	struct authensasl *sasl;
+	Authen_SASL_Cyrus sasl;
 	CODE:
 		RETVAL = sasl->error_code == SASL_CONTINUE;
 	OUTPUT:
@@ -1823,7 +1825,7 @@ need_step(sasl)
 
 int
 property(sasl, ...)
-struct authensasl *sasl
+Authen_SASL_Cyrus sasl
 PPCODE:
 {
 #ifdef SASL2
@@ -1924,7 +1926,7 @@ PPCODE:
 
 void
 DESTROY(sasl)
-    struct authensasl *sasl
+    Authen_SASL_Cyrus sasl
   CODE:
   {
 	__DEBUG("DESTROY");

@@ -473,9 +473,9 @@ Originally written by Mark Adamson <mark@nb.net>
 
 Cyrus-SASL 2.x support by Leif Johansson
 
-Glue for server_* and some other structural improvements by Patrick Boettcher <patrick.boettcher@desy.de>
+Glue for server_* and many other structural improvements by Patrick Boettcher <patrick.boettcher@desy.de>
 
-Please report any bugs, or post any suggestions, to the author.
+Please report any bugs, or post any suggestions, to the authors.
 
 =head1 THANKS
 
@@ -485,7 +485,7 @@ Please report any bugs, or post any suggestions, to the author.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2003-4 Patrick Boettcher, DESY Zeuthen. All rights reserved.
+Copyright (c) 2003-5 Patrick Boettcher, DESY Zeuthen. All rights reserved.
 Copyright (c) 2003 Carnegie Mellon University. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under

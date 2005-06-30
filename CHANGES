@@ -1,5 +1,22 @@
 History of updates to Authen::SASL::Cyrus
 
+0.13-server
+
+Russ Allbery: the 0.12-server distribution of this module has a typemap that
+ends up casting the pointer return from server_new and client_new through an
+int.  This looks like it's causing pointer truncation and various problems on
+some 64-bit platforms (particularly Debian alpha and Debian ia64).
+
+There is a simpler fix than the patch below (just replacing int with long will
+work on most platforms, probably), but reading through the perlxs man page,
+there's apparently a specific way in which one is supposed to handle module
+data T_PTROBJ_SPECIAL.  I went ahead and implemented that, which also improves
+error reporting a bit.  After applying the following patch, the resulting C
+code no longer casts through an int (it casts through an IV instead, but that's
+sufficient on all Unix platforms at least).
+
+typedef for struct authensasl to Authen_SASL_Cyrus.
+
 0.12-server
 merged some of the changes from Authen::SASL::Cyrus 0.12
 changed version named in order to distinguish from the Authen::SASL::Cyrus by Mark Adamson.
