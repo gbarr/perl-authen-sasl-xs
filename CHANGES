@@ -1,0 +1,41 @@
+History of updates to Authen::SASL::Cyrus
+
+0.07
+Memcpy fix provided by Maurice Massar
+
+0.06
+Added SASL V2 support patch provided by Leif Johansson.
+
+0.05
+Added the SASL_CB_PASS callback. This callback, unfortunately, does
+not put the caller's "context" as the first parameter to the callback
+function. This means that the PerlCallback() function has to be able
+to determine if the _perlcontext is the first parameter or the second.
+Added a magic number as the first field of the _perlcontext struct
+to help PerlCallback() decide which parameter is the perl context.
+
+0.04
+Added a method "securesocket" that takes a file handle and returns a
+new file handle that is tied to the Security subclass added in 0.03. 
+In this way, a client program can take the object returned from
+client_new() and call the securesocket() method on it, passing in the
+client's file handle, without ever having to know about the Security
+subclass.  Also added a "tiehandle" method which will take the same
+file handle as "securesocket", and tie it directly to the Security
+subclass. The difference being "securesocket" returns a new file handle,
+and "tiehandle" ties the handle passed in.
+
+0.03  
+Added encryption layer. Cyrus.xs now has encode() and decode()
+methods. Added a "Security" subclass that can be used to tie a
+filehandle to perform encryption on write() and decryption on read().
+The new() method ties a passed in glob to the class.
+
+0.02
+Encryption layer not ready yet, so changed the "secflag" param in the
+call to sasl_client_new() from 1 to 0.  Otherwise, the server will
+start expecting encrypted requests and sending encrypted responses
+after the authentication, and the client cannot encrypt/decrypt.
+
+0.01
+Initial release

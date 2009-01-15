@@ -1,0 +1,8 @@
+Cyrus.pm
+Cyrus.pod
+Cyrus.xs
+MANIFEST
+CHANGES
+Makefile.PL
+typemap
+lib/Authen/SASL/Cyrus/Security.pm
