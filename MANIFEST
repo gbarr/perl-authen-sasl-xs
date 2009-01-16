@@ -1,13 +1,14 @@
-XS.pm
-XS.xs
-XS.pod
-MANIFEST
 CHANGES
-Makefile.PL
-typemap
 lib/Authen/SASL/XS/Security.pm
-t/plain.t
+Makefile.PL
+MANIFEST
+MANIFEST.SKIP
+META.yml			Module meta-data (added by MakeMaker)
+README
 t/common.pl
 t/gssapiskel.pl
-README
-META.yml                                 Module meta-data (added by MakeMaker)
+t/plain.t
+typemap
+XS.pm
+XS.pod
+XS.xs
