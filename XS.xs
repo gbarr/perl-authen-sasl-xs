@@ -195,7 +195,7 @@ int SetSaslError(Authen_SASL_XS sasl,int code, const char* msg)
 	This function executes the perl sub/code and returns the result
 	and its length.
 */
-int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *args)
+int PerlCallbackSub (struct _perlcontext *cp, char **result, STRLEN *len, AV *args)
 {
 	int rc = SASL_OK;
 
@@ -274,7 +274,8 @@ int PerlCallbackSub (struct _perlcontext *cp, char **result, unsigned *len, AV *
 int PerlCallback(void *context, int id, const char **result, unsigned *len)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int llen, rc=SASL_OK;
+	int rc=SASL_OK;
+        STRLEN llen;
 	char *c = NULL;
 
 	if (id != SASL_CB_USER &&
@@ -308,7 +309,8 @@ int PerlCallback(void *context, int id, const char **result, unsigned *len)
 int PerlCallbackRealm ( void *context, int id, const char **availrealms, const char **result)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int rc = SASL_OK,i,len;
+	int rc = SASL_OK,i;
+        STRLEN len;
 	char *c = NULL;
 
 	AV *args = newAV();
@@ -366,7 +368,8 @@ int FillSecret_t(char * p,int len, sasl_secret_t **psecret)
 int PerlCallbackSecret (sasl_conn_t *conn, void *context, int id, sasl_secret_t **psecret)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int len,rc = SASL_OK;
+	STRLEN len;
+        int rc = SASL_OK;
 	char *c = NULL;
 
 	/* HandlePerlStuff */
@@ -390,7 +393,8 @@ int PerlCallbackCanonUser(sasl_conn_t *conn, void *context, const char *user, un
 					unsigned *out_ulen)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int rc = SASL_OK,len;
+	int rc = SASL_OK;
+        STRLEN len;
 	char *c = NULL;
 
 	AV *args;
@@ -433,7 +437,8 @@ int PerlCallbackServerCheckPass(sasl_conn_t *conn, void *context, const char *us
 	const char *pass, unsigned passlen, struct propctx *propctx)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int rc = SASL_OK,len;
+	int rc = SASL_OK;
+        STRLEN len;
 	char *c = NULL;
 
 	AV *args = newAV();
@@ -467,7 +472,8 @@ int PerlCallbackServerSetPass(sasl_conn_t *conn, void *context,
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
 	AV *args = newAV();
-	int rc = SASL_OK, len;
+	int rc = SASL_OK;
+        STRLEN len;
 	char *c = NULL;
 
 	_DEBUG("ServerSetPass: %s, %s, %d",user,pass,passlen);
@@ -497,7 +503,8 @@ int PerlCallbackAuthorize( sasl_conn_t *conn, void *context,
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
 	AV *args = newAV();
-	int rc = SASL_OK,len;
+	int rc = SASL_OK;
+        STRLEN len;
 	char *c = NULL;
 
 	_DEBUG("Authorize: %s, %s, %s",auth_identity,requested_user,def_realm);
@@ -558,7 +565,8 @@ int PerlCallbackAuthorize( void *context, const char *auth_identity, const char 
 					const char **user, const char **errstr)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int rc = SASL_OK,len;
+	int rc = SASL_OK;
+        STRLEN len;
 	AV *args;
 	char *c = NULL;
 
@@ -593,7 +601,8 @@ int PerlCallbackGetSecret( void *context, const char *mechanism, const char *aut
 							const char *realm, sasl_secret_t ** secret)
 {
 	struct _perlcontext *cp = (struct _perlcontext *) context;
-	int rc = SASL_OK,len;
+	int rc = SASL_OK;
+        STRLEN len;
 	AV *args;
 	char *c = NULL;
 
@@ -1306,7 +1315,8 @@ server_start(sasl,instring=NULL)
 	const char *instring;
 	PREINIT:
 		int rc;
-		unsigned outlen,inlen;
+		unsigned outlen;
+                STRLEN inlen;
 #ifdef SASL2
 		const char *outstring = NULL;
 #else
@@ -1402,7 +1412,8 @@ server_step(sasl, instring)
 		const char *error=NULL;
 #endif
 		int rc;
-		unsigned int inlen, outlen=0;
+		unsigned int outlen=0;
+                STRLEN inlen;
 	PPCODE:
 		if (sasl->error_code != SASL_CONTINUE)
 			XSRETURN_UNDEF;
@@ -1456,7 +1467,8 @@ client_step(sasl, instring)
     char *outstring=NULL;
 #endif
     int rc;
-    unsigned int inlen, outlen=0;
+    unsigned int outlen=0;
+    STRLEN inlen;
 
     if (sasl->error_code != SASL_CONTINUE)
       XSRETURN_UNDEF;
@@ -1624,7 +1636,8 @@ encode(sasl, instring)
     char *outstring=NULL;
 #endif
     int rc;
-	unsigned int inlen, outlen=0;
+	unsigned int outlen=0;
+        STRLEN inlen;
 	if (sasl->error_code)
 		XSRETURN_UNDEF;
 
@@ -1652,7 +1665,8 @@ decode(sasl, instring)
     char *outstring=NULL;
 #endif
     int rc;
-    unsigned int inlen, outlen=0;
+    unsigned int outlen=0;
+    STRLEN inlen;
 
     if (sasl->error_code)
        XSRETURN_UNDEF;
