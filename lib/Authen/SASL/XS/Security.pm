@@ -2,7 +2,7 @@
 # Add SASL encoding/decoding to a filehandle
 #
 
-package Authen::SASL::Cyrus::Security;
+package Authen::SASL::XS::Security;
 
 
 sub TIEHANDLE {

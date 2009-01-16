@@ -4,8 +4,8 @@ use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 WriteMakefile(
-    'NAME'	=> 'Authen::SASL::Cyrus',
-    'VERSION_FROM' => 'Cyrus.pm',
+    'NAME'	=> 'Authen::SASL::XS',
+    'VERSION_FROM' => 'XS.pm',
 	'PREREQ_PM'		=> {
 		Test::Simple => 0,
 		Test::More	=> 0,
@@ -17,11 +17,11 @@ package MY;
 sub manifypods
 {
 	return <<'POD';
-manifypods: Cyrus.pod
+manifypods: XS.pod
 
-Cyrus.pod: Cyrus.xs
-		@echo "!!! Developers: Do not edit the Cyrus.pod, edit the Cyrus.xs instead. !!!"
-		@echo "Make will overwrite Cyrus.pod."
-		podselect Cyrus.xs > Cyrus.pod
+XS.pod: XS.xs
+		@echo "!!! Developers: Do not edit the XS.pod, edit the XS.xs instead. !!!"
+		@echo "Make will overwrite XS.pod."
+		podselect XS.xs > XS.pod
 POD
 }

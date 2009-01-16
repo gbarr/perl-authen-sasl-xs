@@ -1,11 +1,11 @@
-Cyrus.pm
-Cyrus.xs
-Cyrus.pod
+XS.pm
+XS.xs
+XS.pod
 MANIFEST
 CHANGES
 Makefile.PL
 typemap
-lib/Authen/SASL/Cyrus/Security.pm
+lib/Authen/SASL/XS/Security.pm
 t/plain.t
 t/common.pl
 t/gssapiskel.pl

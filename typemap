@@ -1,5 +1,5 @@
 TYPEMAP
-Authen_SASL_Cyrus	T_PTROBJ_SPECIAL
+Authen_SASL_XS	T_PTROBJ_SPECIAL
 const char *    T_PV
 
 INPUT

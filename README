@@ -1,6 +1,6 @@
-Authen::SASL::Cyrus - XS code to glue Perl SASL to Cyrus SASL
+Authen::SASL::XS - XS code to glue Perl SASL to Cyrus SASL
 
-1. Build Authen::SASL::Cyrus
+1. Build Authen::SASL::XS
 
 First of all you need Authen::SASL installed at least in version 2.06 (with
 server patch or higher).
@@ -44,10 +44,10 @@ If you want to test gssapi functionality, copy the gssapiskel.pl to gssapi.t
 and edit the file correctly. Don't forget the create keytabfiles. Then
 rerun make test and see what happens.
 
-2. Use Authen::SASL::Cyrus with GSSAPI for LDAP
+2. Use Authen::SASL::XS with GSSAPI for LDAP
 
 If you are able to use the ldap* tools with GSSAPI and now you want to use Perl
-for this LDAP work, then you need Authen::SASL::Cyrus 0.11 or later. Please try
+for this LDAP work, then you need Authen::SASL::XS 1.00 or later. Please try
 this script before reporting any bugs or problems:
 
 #!/usr/bin/perl -w

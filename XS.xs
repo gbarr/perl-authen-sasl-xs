@@ -1,6 +1,6 @@
 =head1 NAME
 
-Authen::SASL::Cyrus	- XS code to glue Perl SASL to Cyrus SASL
+Authen::SASL::XS	- XS code to glue Perl SASL to Cyrus SASL
 
 =head1 SYNOPSIS
 
@@ -18,7 +18,7 @@ Authen::SASL::Cyrus	- XS code to glue Perl SASL to Cyrus SASL
 =head1 DESCRIPTION
 
 SASL is a generic mechanism for authentication used by several
-network protocols. B<Authen::SASL::Cyrus> provides an implementation
+network protocols. B<Authen::SASL::XS> provides an implementation
 framework that all protocols should be able to share.
 
 The XS framework makes calls into the existing libsasl.so resp. libsasl2
@@ -84,7 +84,7 @@ struct authensasl {
   int is_client;
 };
 
-typedef struct authensasl * Authen_SASL_Cyrus;
+typedef struct authensasl * Authen_SASL_XS;
 
 struct _perlcontext {
   SV *func;
@@ -139,7 +139,7 @@ PUSHs(sv_2mortal(newSVpvn((char *)(A),(STRLEN)(B))));
 #endif
 
 // internal method for handling errors and their messages
-int SetSaslError(Authen_SASL_Cyrus sasl,int code, const char* msg)
+int SetSaslError(Authen_SASL_XS sasl,int code, const char* msg)
 {
 	if (sasl == NULL)
 #ifdef SASL2
@@ -281,7 +281,7 @@ int PerlCallback(void *context, int id, const char **result, unsigned *len)
 		id != SASL_CB_AUTHNAME &&
 		id != SASL_CB_LANGUAGE)
 	{
-		croak("Authen::SASL::Cyrus:  Don't know how to handle callback: %x\n", id);
+		croak("Authen::SASL::XS:  Don't know how to handle callback: %x\n", id);
 		rc = -1;
 	}
 	else
@@ -638,10 +638,10 @@ The Cyrus-SASL library uses callbacks when the application
 needs some information. Common reasons are getting
 usernames and passwords.
 
-Authen::SASL::Cyrus allows Cyrus-SASL to use perl-variables and perl-subs
+Authen::SASL::XS allows Cyrus-SASL to use perl-variables and perl-subs
 as callback-targets.
 
-Currently Authen::SASL::Cyrus supports the following Callback types:
+Currently Authen::SASL::XS supports the following Callback types:
 (for a more detailed description on what the callback type is used for
 see the respective man pages)
 
@@ -721,7 +721,7 @@ C<Type of principal> is "AUTHID" for Authentication ID or "AUTHZID"
 for Authorisation ID.
 
 B<Remark>: This callback is ideal to get the username of the user using your service.
-If C<Authen::SASL::Cyrus> is linked to Cyrus SASL v1, which doesn't have a canonuser callback,
+If C<Authen::SASL::XS> is linked to Cyrus SASL v1, which doesn't have a canonuser callback,
 it will simulate this callback by using the authorize callback internally. Don't worry, the
 authorize callback is available anyway.
 
@@ -747,7 +747,7 @@ Out: true or false
 
 =head2 Ways to pass a callback
 
-Authen::SASL::Cyrus supports three different ways to pass a callback
+Authen::SASL::XS supports three different ways to pass a callback
 
 =over 4
 
@@ -933,7 +933,7 @@ void AddCallback(SV *action, struct _perlcontext *pcb, sasl_callback_t *cb)
  */
 
 static
-void ExtractParentCallbacks(SV *parent, Authen_SASL_Cyrus sasl)
+void ExtractParentCallbacks(SV *parent, Authen_SASL_XS sasl)
 {
 	char *key;
 	int count=0,i;
@@ -1081,7 +1081,7 @@ int PropertyNumber(char *name)
 }
 
 
-int init_sasl (SV* parent,char* service,char* host, Authen_SASL_Cyrus *sasl,int client)
+int init_sasl (SV* parent,char* service,char* host, Authen_SASL_XS *sasl,int client)
 {
 	HV *hash;
 	SV **hashval;
@@ -1096,7 +1096,7 @@ int init_sasl (SV* parent,char* service,char* host, Authen_SASL_Cyrus *sasl,int 
 	if (*sasl == NULL)
 	{
 		// Initialize the given sasl
-		*sasl = (Authen_SASL_Cyrus) malloc (sizeof(struct authensasl));
+		*sasl = (Authen_SASL_XS) malloc (sizeof(struct authensasl));
 		if (*sasl == NULL)
 			croak("Out of memory\n");
 		memset(*sasl, 0, sizeof(struct authensasl));
@@ -1148,7 +1148,7 @@ int init_sasl (SV* parent,char* service,char* host, Authen_SASL_Cyrus *sasl,int 
 }
 
 #ifdef SASL2
-void set_secprop (Authen_SASL_Cyrus sasl)
+void set_secprop (Authen_SASL_XS sasl)
 {
 	sasl_security_properties_t ssp;
 
@@ -1164,10 +1164,10 @@ void set_secprop (Authen_SASL_Cyrus sasl)
 
 
 
-MODULE=Authen::SASL::Cyrus      PACKAGE=Authen::SASL::Cyrus
+MODULE=Authen::SASL::XS      PACKAGE=Authen::SASL::XS
 
 
-=head1 Authen::SASL::Cyrus METHODS
+=head1 Authen::SASL::XS METHODS
 
 =over 4
 
@@ -1175,7 +1175,7 @@ MODULE=Authen::SASL::Cyrus      PACKAGE=Authen::SASL::Cyrus
 
 Constructor for creating server-side sasl contexts.
 
-Creates and returns a new connection object blessed into Authen::SASL::Cyrus.
+Creates and returns a new connection object blessed into Authen::SASL::XS.
 It is on that returned reference that the following methods are available.
 The SERVICE is the name of the service being implemented, which may be used
 by the underlying mechanism. An example service therefore is "ldap".
@@ -1183,7 +1183,7 @@ by the underlying mechanism. An example service therefore is "ldap".
 =cut
 
 
-Authen_SASL_Cyrus
+Authen_SASL_XS
 server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NULL ...)
 	char *pkg
 	SV *parent
@@ -1194,7 +1194,7 @@ server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NUL
 	CODE:
 	{
 /* TODO realm parameter */
-		Authen_SASL_Cyrus sasl = NULL;
+		Authen_SASL_XS sasl = NULL;
 		int rc;
 
 		if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_SERVER)) != SASL_OK)
@@ -1227,7 +1227,7 @@ server_new(pkg, parent, service, host = NULL, iplocalport=NULL, ipremoteport=NUL
 
 Constructor for creating server-side sasl contexts.
 
-Creates and returns a new connection object blessed into Authen::SASL::Cyrus.
+Creates and returns a new connection object blessed into Authen::SASL::XS.
 It is on that returned reference that the following methods are available.
 The SERVICE is the name of the service being implemented, which may be used
 by the underlying mechanism. An example service is "ldap". The HOST is the
@@ -1253,7 +1253,7 @@ See SYNOPSIS for an example.
 
 =cut
 
-Authen_SASL_Cyrus
+Authen_SASL_XS
 client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL...)
     char *pkg
     SV *parent
@@ -1263,7 +1263,7 @@ client_new(pkg, parent, service, host, iplocalport = NULL, ipremoteport = NULL..
 	char *ipremoteport
   CODE:
   {
-	Authen_SASL_Cyrus sasl = NULL;
+	Authen_SASL_XS sasl = NULL;
 	int rc;
 
 	if ((rc = init_sasl(parent,service,host,&sasl,SASL_IS_CLIENT)) != SASL_OK)
@@ -1302,7 +1302,7 @@ you can give the client challenge as a parameter.
 
 char *
 server_start(sasl,instring=NULL)
-	Authen_SASL_Cyrus sasl;
+	Authen_SASL_XS sasl;
 	const char *instring;
 	PREINIT:
 		int rc;
@@ -1352,7 +1352,7 @@ Client has to start the negotiation always.
 
 char *
 client_start(sasl)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   PREINIT:
 	int rc;
 	unsigned outlen;
@@ -1392,7 +1392,7 @@ first parameter you give is the clients challenge/response.
 
 char *
 server_step(sasl, instring)
-	Authen_SASL_Cyrus sasl
+	Authen_SASL_XS sasl
 	char *instring
 	PREINIT:
 #ifdef SASL2
@@ -1446,7 +1446,7 @@ See example below.
 
 char *
 client_step(sasl, instring)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
     char *instring
   PPCODE:
   {
@@ -1489,7 +1489,7 @@ and END is the token which will be put at the end of returned string.
 
 char *
 listmech(sasl,start="",separator="|",end="")
-	Authen_SASL_Cyrus sasl;
+	Authen_SASL_XS sasl;
 	const char* start;
 	const char* separator;
 	const char* end;
@@ -1538,7 +1538,7 @@ Both functions return true on success, false otherwise.
 
 int
 setpass(sasl, user, pass, oldpass, flags=0)
-	Authen_SASL_Cyrus sasl;
+	Authen_SASL_XS sasl;
 	const char *user;
 	const char *pass;
 	const char *oldpass;
@@ -1555,7 +1555,7 @@ PPCODE:
 
 
 int checkpass(sasl,user,pass)
-	Authen_SASL_Cyrus sasl;
+	Authen_SASL_XS sasl;
 	const char *user;
 	const char *pass;
 PREINIT:
@@ -1580,7 +1580,7 @@ It returns an array with all mechanisms loaded by the library.
 
 void
 global_listmech(sasl)
-	Authen_SASL_Cyrus sasl
+	Authen_SASL_XS sasl
 	PREINIT:
 		int i;
 		const char **mechs;
@@ -1614,7 +1614,7 @@ It depends on the used mechanism how secure the encryption will be.
 
 char *
 encode(sasl, instring)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
     char *instring
   PPCODE:
   {
@@ -1642,7 +1642,7 @@ encode(sasl, instring)
 
 char *
 decode(sasl, instring)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
     char *instring
   PPCODE:
   {
@@ -1671,7 +1671,7 @@ decode(sasl, instring)
 
 int
 callback(sasl, ...)
-	Authen_SASL_Cyrus sasl
+	Authen_SASL_XS sasl
 	CODE:
 /*
  This function is unnecessary since there is no
@@ -1695,7 +1695,7 @@ callback(sasl, ...)
 C<error> returns an array with all known error messages.
 Basicly the sasl_errstring function is called with the current error_code.
 When using Cyrus-SASL 2.x library also the string returned by sasl_errdetail
-is given back. Additionally the special Authen::SASL::Cyrus advise is
+is given back. Additionally the special Authen::SASL::XS advise is
 returned if set.
 After calling the C<error> function, the error code and the special advice
 are thrown away.
@@ -1704,7 +1704,7 @@ are thrown away.
 
 char *
 error(sasl)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   PPCODE:
   {
 	_DEBUG("Current Error %x",sasl->error_code);
@@ -1738,7 +1738,7 @@ C<code> returns the current Cyrus-SASL error code.
 
 int
 code(sasl)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   CODE:
     RETVAL=sasl->error_code;
   OUTPUT:
@@ -1755,7 +1755,7 @@ C<mechanism> returns the current used authentication mechanism.
 
 char *
 mechanism(sasl)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   CODE:
     RETVAL = sasl->mech;
   OUTPUT:
@@ -1765,7 +1765,7 @@ mechanism(sasl)
 
 char *
 host(sasl, ...)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   CODE:
     if (items > 1) {
       if (sasl->server) free(sasl->server);
@@ -1779,7 +1779,7 @@ host(sasl, ...)
 
 char *
 user(sasl, ...)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   CODE:
     if (items > 1) {
       if (sasl->user) free(sasl->user);
@@ -1793,7 +1793,7 @@ user(sasl, ...)
 
 char *
 service(sasl, ...)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   CODE:
     if (items > 1) {
       if (sasl->service) free(sasl->service);
@@ -1816,7 +1816,7 @@ That's why we all using perl, eh?
 
 int
 need_step(sasl)
-	Authen_SASL_Cyrus sasl;
+	Authen_SASL_XS sasl;
 	CODE:
 		RETVAL = sasl->error_code == SASL_CONTINUE;
 	OUTPUT:
@@ -1825,7 +1825,7 @@ need_step(sasl)
 
 int
 property(sasl, ...)
-Authen_SASL_Cyrus sasl
+Authen_SASL_XS sasl
 PPCODE:
 {
 #ifdef SASL2
@@ -1926,7 +1926,7 @@ PPCODE:
 
 void
 DESTROY(sasl)
-    Authen_SASL_Cyrus sasl
+    Authen_SASL_XS sasl
   CODE:
   {
 	__DEBUG("DESTROY");
@@ -1966,7 +1966,7 @@ DESTROY(sasl)
     }
  );
 
- # Creating the Authen::SASL::Cyrus object
+ # Creating the Authen::SASL::XS object
  my $conn = $sasl->server_new("service","","ip;port local","ip;port remote");
 
  # Clients first string (maybe "", depends on mechanism)
@@ -1999,7 +1999,7 @@ DESTROY(sasl)
     }
  );
 
- # Creating the Authen::SASL::Cyrus object
+ # Creating the Authen::SASL::XS object
  my $conn = $sasl->client_new("service", "hostname.domain.tld");
 
  # Client begins always

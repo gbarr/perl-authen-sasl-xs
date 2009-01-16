@@ -1,6 +1,6 @@
 
 use strict;
-use Authen::SASL;
+use Authen::SASL qw(XS); # Only use XS plugin
 use Test::Simple tests => 5;
 
 our $me;
@@ -32,7 +32,7 @@ sleep(1);
 	) or ok(0);
 	ok(1);
 	
-	my $conn = $sasl->server_new($service) or die "Authen::SASL::Cyrus failed." or
+	my $conn = $sasl->server_new($service) or die "Authen::SASL::XS failed." or
 		ok(0);
 	ok(1);
 
@@ -71,7 +71,7 @@ sleep(1);
 	) or die "Authen::SASL failed.";
 
 	my $conn = $sasl->client_new($service, $host)
-		or die "Authen::SASL::Cyrus failed.";
+		or die "Authen::SASL::XS failed.";
 
 	sendreply($conn->client_start(),*TO_PARENT);
 
