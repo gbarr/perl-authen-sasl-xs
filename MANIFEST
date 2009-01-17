@@ -3,7 +3,6 @@ lib/Authen/SASL/XS/Security.pm
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
-META.yml			Module meta-data (added by MakeMaker)
 README
 t/common.pl
 t/gssapiskel.pl
