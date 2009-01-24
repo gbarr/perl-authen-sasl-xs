@@ -1,26 +1,48 @@
 # Do yourself a favour, and don't edit this file, see README for build instructions
 
+use lib 'inc';
 use ExtUtils::MakeMaker;
+use Devel::CheckLib;
 
-my @inc;
-my @lib;
-my $define;
+my @inc_search = qw(/opt/local/include /usr/local/include);
+my @lib_search = qw(/opt/local/lib64 /usr/local/lib64 /opt/local/lib /usr/local/lib);
+my %args       = map {/^(\w+)=(.*)/} grep {/^\w+=/} @ARGV;
+my $use_sasl2  = exists $args{DEFINE} and $args{DEFINE} =~ /-DSASL2/;
+my %mmopt;
 
-my @search = (
-  [qw(/usr/local/include /usr/local/lib)], [qw(/usr/local/include /usr/local/lib64)],
-  [qw(/opt/local/include /opt/local/lib)], [qw(/opt/local/include /opt/local/lib64)],
-);
+unless (exists $args{INC} or exists $args{LIB}) {
 
-if (do_search("sasl2")) {
-  $define = "-DSASL2";
+  my @incpath = grep {-d} @inc_search;
+  my @libpath = grep {-d} @lib_search;
+  my $have_sasl2 = eval {
+    assert_lib(
+      lib     => "sasl2",
+      header  => "sasl/sasl.h",
+      libpath => \@libpath,
+      incpath => \@incpath
+    );
+    1;
+  };
+
+  if ($have_sasl2) {
+    $mmopt{DEFINE} = "-DSASL2" unless $use_sasl2;
+  }
+  else {
+    exit(0) if $use_sasl2;
+    @incpath = grep {-d} map { ("$_/sasl", $_) } @inc_search;
+    check_lib_or_exit(
+      lib     => "sasl",
+      header  => "sasl.h",
+      libpath => \@libpath,
+      incpath => \@incpath
+    );
+  }
+
+  $mmopt{INC}  = join " ", map {"-I$_"} @incpath;
+  $mmopt{LIBS} = join " ", map {"-L$_"} @libpath;
+  $mmopt{LIBS} .= $have_sasl2 ? " -lsasl2" : " -lsasl";
 }
-else {
-  do_search("sasl");
-}
 
-
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
 WriteMakefile(
   'NAME'         => 'Authen::SASL::XS',
   'VERSION_FROM' => 'XS.pm',
@@ -29,24 +51,8 @@ WriteMakefile(
     Test::More   => 0,
     Authen::SASL => 2.08,
   },
-  @inc    ? (INC    => "@inc")  : (),
-  @lib    ? (LIBS   => "@lib")  : (),
-  $define ? (DEFINE => $define) : (),
+  %mmopt,
 );
-
-sub do_search {
-  my $what = shift;
-
-  foreach my $pair (@search) {
-    my ($inc, $lib) = @$pair;
-    my @libs = glob("$lib/lib$what.*") or next;
-
-    push @lib, "-L$lib -l$what";
-    push @inc, "-I$inc";
-    return 1;
-  }
-  return 0;
-}
 
 package MY;
 
@@ -59,3 +65,26 @@ XS.pod: XS.xs
 	- podselect XS.xs > XS.pod
 POD
 }
+
+
+sub metafile {
+  my $self = shift;
+  my $pkg  = ref($self) || $self;
+  my $echo = $self->can('echo');
+
+  # This is not supported by MM, but locally override ->echo to add to META.yml
+  local *{"${pkg}::echo"} = sub {
+    my ($self, $what, $target) = @_;
+    if ($target eq 'META_new.yml') {
+      $what .= <<EXTRA_META;
+no_index:
+  directory:
+    - inc
+    - t
+EXTRA_META
+    }
+    $self->$echo($what, $target);
+  };
+  $self->metafile_target(@_);
+}
+

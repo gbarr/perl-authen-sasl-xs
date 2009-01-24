@@ -11,3 +11,4 @@ typemap
 XS.pm
 XS.pod
 XS.xs
+inc/Devel/CheckLib.pm
