@@ -77,6 +77,7 @@ struct authensasl {
   char *service;
   char *mech;
   char *user;
+  int maxssf;
 
   int error_code;
   char *additional_errormsg;
@@ -1153,6 +1154,25 @@ int init_sasl (SV* parent,char* service,char* host, Authen_SASL_XS *sasl,int cli
 		}
 	}
 
+	/* Extract maxssf from the parent object */
+	if (parent && SvROK(parent) && (SvTYPE(SvRV(parent)) == SVt_PVHV))
+	{
+		hash = (HV *)SvRV(parent);
+		hashval = hv_fetch(hash, "maxssf", 6, 0);
+		if (hashval && SvTYPE(*hashval) == SVt_IV)
+		{
+			(*sasl)->maxssf = SvIV(*hashval);
+		}
+		else if (hashval && SvTYPE(*hashval) == SVt_NV)
+		{
+			(*sasl)->maxssf = SvNV(*hashval);
+		}
+		else
+		{
+			(*sasl)->maxssf = 0xFF;
+		}
+	}
+
 	return (*sasl)->error_code;
 }
 
@@ -1166,7 +1186,7 @@ void set_secprop (Authen_SASL_XS sasl)
 
 	memset(&ssp, 0, sizeof(ssp));
 	ssp.maxbufsize = 0xFFFF;
-	ssp.max_ssf = 0xFF;
+	ssp.max_ssf = sasl->maxssf;
 	sasl_setprop(sasl->conn, SASL_SEC_PROPS, &ssp);
 }
 #endif
